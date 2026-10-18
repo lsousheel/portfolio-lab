@@ -1,0 +1,22 @@
+
+> programming-finance@1.0.0 test
+> npm run build && jasmine --config=tests/jasmine.json
+
+
+> programming-finance@1.0.0 build
+> tsc
+
+Started
+............................F
+
+Failures:
+1) Analysis persistence and chronology records 20-company recommendation and evaluates only subsequent dates
+  Message:
+    Expected '1' to be 1.
+  Stack:
+        at <Jasmine>
+        at UserContext.<anonymous> (file:///C:/Users/lsous/Documents/ChatGPT/pf/dist/tests/integration.spec.js:58:770)
+        at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+29 specs, 1 failure
+Finished in 12.125 seconds
