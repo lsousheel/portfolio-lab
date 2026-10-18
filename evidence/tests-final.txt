@@ -7,8 +7,8 @@
 > tsc
 
 Started
-..................................
+...................................
 
 
-34 specs, 0 failures
-Finished in 15.61 seconds
+35 specs, 0 failures
+Finished in 14.21 seconds

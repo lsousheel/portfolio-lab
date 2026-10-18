@@ -9,7 +9,7 @@ export function pool(test = false) {
     process.env[test ? "TEST_DB_NAME" : "DB_NAME"] || (test ? "pf_test" : "pf");
   if (test && !db.endsWith("_test"))
     throw Error("Test database must end in _test");
-  return mysql.createPool({
+  const result = mysql.createPool({
     host: process.env.DB_HOST || "127.0.0.1",
     port: Number(process.env.DB_PORT || 3307),
     user: process.env.DB_USER || "pf",
@@ -21,6 +21,12 @@ export function pool(test = false) {
     supportBigNumbers: true,
     bigNumberStrings: true,
   });
+  // Driver conversion timezone does not set the MySQL session timezone.
+  // Queue this before any query on each newly created connection.
+  result.on("connection", (connection) => {
+    connection.query("SET time_zone = '+00:00'");
+  });
+  return result;
 }
 export async function rows(
   db: DB,

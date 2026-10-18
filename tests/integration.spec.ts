@@ -294,3 +294,20 @@ describe("Additional transaction boundary cases", () => {
     ).toBe(0);
   });
 });
+
+it("uses UTC sessions and excludes orders created after basket cutoff", async () => {
+  const [zone] = await rows(db, "SELECT @@session.time_zone zone");
+  expect(zone.zone).toBe("+00:00");
+  await db.execute(
+    "UPDATE orders SET status='CANCELLED' WHERE status='PENDING'",
+  );
+  const { user, p } = await account(),
+    cutoff = new Date(Date.now() - 60000),
+    o = await buy(user.id, p.id);
+  const batch = await t.basket(randomUUID(), cutoff);
+  expect(batch.fills.length).toBe(0);
+  expect(
+    (await t.activity(user.id, p.id)).orders.find((x: any) => x.id === o.id)
+      .status,
+  ).toBe("PENDING");
+});

@@ -1,0 +1,5 @@
+Report #1: 7 pages, text present on every page.
+All 7 rendered page PNGs visually inspected in session; no clipping/overlap observed.
+Editable source: docs/build_report.py.
+OpenAPI JSON parsed: 20 paths, bearer security and request schemas present.
+Report created before implementation; sources verified through browsing on 2026-10-18.

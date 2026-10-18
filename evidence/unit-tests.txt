@@ -1,0 +1,16 @@
+
+> programming-finance@1.0.0 test:unit
+> npm run build && jasmine dist/tests/domain.spec.js
+
+
+> programming-finance@1.0.0 build
+> tsc
+
+Randomized with seed 60287
+Started
+..................
+
+
+18 specs, 0 failures
+Finished in 0.088 seconds
+Randomized with seed 60287 (jasmine --random=true --seed=60287)

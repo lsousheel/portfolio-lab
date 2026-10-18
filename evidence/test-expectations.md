@@ -17,3 +17,5 @@ The same AI agent generated code and tests. These examples use small arithmetic/
 First suite: 29 specs, one assertion failure because MySQL COUNT was returned as string '1' under safe large-number settings. The assertion changed to `Number(stored.n)` for this small count, not a weakened financial assertion. Test run output is preserved.
 
 Passing tests did not catch the original committed-retry/provider-outage issue; code review exposed it, and a new regression now covers it. Likewise an initial benchmark omitted the strategy's entry cost; review added the same 10-bps entry cost to buy-and-hold. These examples show why green tests do not prove correctness or economic validity.
+
+Regression after 34 passing specs: demo timestamp review found a UTC/session mismatch not exercised by the original suite. A new test checks a batch cutoff one minute before order creation leaves that order pending. The fixed pool initializes every connection to UTC. This is another concrete example of passing tests failing to establish full logical correctness.

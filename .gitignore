@@ -4,3 +4,6 @@ dist/
 .local/
 tmp/
 *.log
+
+output/*.zip
+output/*.bundle
