@@ -17,6 +17,9 @@ const pct = (n) =>
   num = (n) => (n == null ? "—" : Number(n).toFixed(2)),
   today = () => new Date().toISOString().slice(0, 10);
 const names = {
+  CSCO: "Cisco",
+  GS: "Goldman Sachs",
+  INTC: "Intel",
   AAPL: "Apple",
   MSFT: "Microsoft",
   AMZN: "Amazon",
@@ -129,7 +132,12 @@ async function loadPortfolio() {
   save();
   if (portfolio) {
     const list = await api(base() + "/recommendations");
-    recommendation = list[0] ? { id: list[0].id, ...list[0].payload } : null;
+    const matching = list.find(
+      (r) =>
+        !config.sourceId ||
+        r.payload.details.every((d) => d.provider === config.sourceId),
+    );
+    recommendation = matching ? { id: matching.id, ...matching.payload } : null;
   } else recommendation = null;
   proposal = null;
   evaluation = null;
@@ -175,7 +183,7 @@ const tourSteps = [
   [
     "guide",
     "Finish with the limits",
-    "Explain synthetic data, simulated execution, and why historical performance is not a guarantee.",
+    "Explain the labeled data source, simulated execution, and why historical performance is not a guarantee.",
   ],
 ];
 function tourBanner() {
@@ -232,7 +240,7 @@ function lineChart(values) {
           `${((i / (values.length - 1)) * w).toFixed(2)},${(h - 12 - ((v - min) / range) * (h - 24)).toFixed(2)}`,
       )
       .join(" ");
-  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Adjusted stock price over the displayed period" preserveAspectRatio="none"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a9c98b" stop-opacity=".35"/><stop offset="100%" stop-color="#a9c98b" stop-opacity="0"/></linearGradient></defs>${[30, 75, 120, 165].map((y) => `<line x1="0" y1="${y}" x2="680" y2="${y}" stroke="#e9eee3" stroke-dasharray="4 5"/>`).join("")}<polygon points="0,180 ${pts} 680,180" fill="url(#area)"/><polyline points="${pts}" fill="none" stroke="#377654" stroke-width="2.4" vector-effect="non-scaling-stroke"/></svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Stock closing price over the displayed period" preserveAspectRatio="none"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a9c98b" stop-opacity=".35"/><stop offset="100%" stop-color="#a9c98b" stop-opacity="0"/></linearGradient></defs>${[30, 75, 120, 165].map((y) => `<line x1="0" y1="${y}" x2="680" y2="${y}" stroke="#e9eee3" stroke-dasharray="4 5"/>`).join("")}<polygon points="0,180 ${pts} 680,180" fill="url(#area)"/><polyline points="${pts}" fill="none" stroke="#377654" stroke-width="2.4" vector-effect="non-scaling-stroke"/></svg>`;
 }
 async function overview() {
   if (!portfolio)
@@ -262,7 +270,7 @@ async function overview() {
       `Welcome back, ${esc(current().name)}. See where you stand before your next move.`,
       picker(),
     ) +
-    `<div class="cards">${card("Estimated portfolio value", usd(Number(portfolio.cash) + invested), "Cash + quoted value of holdings", true)}${card("Available cash", usd(portfolio.cash), "Ready for simulated trades")}${card("Companies held", held.length + ' <span style="font-size:14px;color:#82917d">/ 20</span>', "Diversify across different stocks")}${card("Investment horizon", portfolio.horizon + " years", "Your future investment goal")}</div><div class="grid"><section class="panel"><div class="panel-head"><div><h2>Market explorer</h2><p class="muted small">Last 252 observations · adjusted price</p></div><select id="chart-symbol" aria-label="Chart stock">${config.symbols.map((s) => `<option ${s === chartSymbol ? "selected" : ""}>${s}</option>`).join("")}</select></div><div class="split"><div><span class="stat-inline">${usd(bars.at(-1)?.close)}</span><p class="small ${change >= 0 ? "positive" : "negative"}">${pct(change)} over the displayed window</p></div><div class="legend"><i></i>${esc(names[chartSymbol])}</div></div><div class="chart">${lineChart(bars.map((b) => b.close))}</div><div class="chart-labels"><span>${bars[0]?.date || ""}</span><span>${bars.at(-1)?.date || ""}</span></div><p class="small muted" style="margin:12px 0 0">${esc(history.provider)} · Selected stock history, not your portfolio return.</p></section><section class="panel"><div class="panel-head"><div><h2>Your next move</h2><p class="small muted">A clear path from evidence to action</p></div><span class="tag">GUIDED</span></div><div class="stack"><div><h3>01 &nbsp; Add virtual funds</h3><p class="small muted">Give your portfolio a starting balance.</p><button class="button" data-action="fund">+ Add funds</button></div><div><h3>02 &nbsp; Find an allocation</h3><p class="small muted">Compare risk across selected companies.</p><a class="button primary" href="#strategy">Open strategy lab →</a></div></div>${explain("Cash is part of the portfolio", "An all-cash portfolio has zero stock-price volatility in this model. Buying stocks can increase risk even when diversified.")}</section></div><section class="panel"><div class="panel-head"><div><h2>Your holdings</h2><p class="small muted">Whole shares owned by this portfolio</p></div><a class="button subtle" href="#trades">Trade desk ↗</a></div>${held.length ? `<div class="table-wrap"><table><thead><tr><th>Company</th><th>Shares</th><th>Quote</th><th>Estimated value</th><th>Portfolio weight</th></tr></thead><tbody>${held.map((x) => `<tr><td><span class="ticker">${x.symbol}</span><span class="company">${names[x.symbol] || ""}</span></td><td>${x.quantity}</td><td>${usd(quotes[x.symbol].price)}</td><td>${usd(x.quantity * Number(quotes[x.symbol].price))}</td><td>${pct((x.quantity * Number(quotes[x.symbol].price)) / (Number(portfolio.cash) + invested))}</td></tr>`).join("")}</tbody></table></div>` : empty("Your cash is waiting for a plan.", "Generate a recommendation in Strategy lab, or place your first order in Trade desk.")}</section>`
+    `<div class="cards">${card("Estimated portfolio value", usd(Number(portfolio.cash) + invested), "Cash + quoted value of holdings", true)}${card("Available cash", usd(portfolio.cash), "Ready for simulated trades")}${card("Companies held", held.length + ' <span style="font-size:14px;color:#82917d">/ 20</span>', "Diversify across different stocks")}${card("Investment horizon", portfolio.horizon + " years", "Your future investment goal")}</div><div class="grid"><section class="panel"><div class="panel-head"><div><h2>Market explorer</h2><p class="muted small">Last 252 observations · closing price</p></div><select id="chart-symbol" aria-label="Chart stock">${config.symbols.map((s) => `<option ${s === chartSymbol ? "selected" : ""}>${s}</option>`).join("")}</select></div><div class="split"><div><span class="stat-inline">${usd(bars.at(-1)?.close)}</span><p class="small ${change >= 0 ? "positive" : "negative"}">${pct(change)} over the displayed window</p></div><div class="legend"><i></i>${esc(names[chartSymbol])}</div></div><div class="chart">${lineChart(bars.map((b) => b.close))}</div><div class="chart-labels"><span>${bars[0]?.date || ""}</span><span>${bars.at(-1)?.date || ""}</span></div><p class="small muted" style="margin:12px 0 0">${esc(history.provider)} · Selected stock history, not your portfolio return.</p></section><section class="panel"><div class="panel-head"><div><h2>Your next move</h2><p class="small muted">A clear path from evidence to action</p></div><span class="tag">GUIDED</span></div><div class="stack"><div><h3>01 &nbsp; Add virtual funds</h3><p class="small muted">Give your portfolio a starting balance.</p><button class="button" data-action="fund">+ Add funds</button></div><div><h3>02 &nbsp; Find an allocation</h3><p class="small muted">Compare risk across selected companies.</p><a class="button primary" href="#strategy">Open strategy lab →</a></div></div>${explain("Cash is part of the portfolio", "An all-cash portfolio has zero stock-price volatility in this model. Buying stocks can increase risk even when diversified.")}</section></div><section class="panel"><div class="panel-head"><div><h2>Your holdings</h2><p class="small muted">Whole shares owned by this portfolio</p></div><a class="button subtle" href="#trades">Trade desk ↗</a></div>${held.length ? `<div class="table-wrap"><table><thead><tr><th>Company</th><th>Shares</th><th>Quote</th><th>Estimated value</th><th>Portfolio weight</th></tr></thead><tbody>${held.map((x) => `<tr><td><span class="ticker">${x.symbol}</span><span class="company">${names[x.symbol] || ""}</span></td><td>${x.quantity}</td><td>${usd(quotes[x.symbol].price)}</td><td>${usd(x.quantity * Number(quotes[x.symbol].price))}</td><td>${pct((x.quantity * Number(quotes[x.symbol].price)) / (Number(portfolio.cash) + invested))}</td></tr>`).join("")}</tbody></table></div>` : empty("Your cash is waiting for a plan.", "Generate a recommendation in Strategy lab, or place your first order in Trade desk.")}</section>`
   );
 }
 function strategy() {
@@ -379,7 +387,7 @@ function performance() {
       "Did the recommendation hold up?",
       "Measure what happened after the decision. Keep comparisons honest.",
     ) +
-    `<section class="panel"><div class="panel-head"><div><p class="eyebrow">RECORDED ALLOCATION EVALUATION</p><h2>${recommendation ? "Decision dated " + recommendation.cutoff : "Start with a recommendation"}</h2><p class="muted small">${recommendation ? "Evaluates the latest stored recommendation for this portfolio." : "Open Strategy lab to record a decision with a historical cutoff."}</p></div><a href="#strategy" class="button subtle">Strategy lab ↗</a></div><form id="evaluation-form"><div class="form-grid"><label>Evaluate through<input type="date" name="end" value="${today()}" max="${today()}" required></label></div><button class="button primary" ${recommendation ? "" : "disabled"}>Evaluate later observations →</button></form>${explain("No peeking into the future", "Entry uses the first shared observation strictly after the cutoff. At least 61 later shared observations are needed. An old cutoff analyzed today is historical replay, not observed future live performance.")}</section>${evaluation ? evaluationView() : ""}<section class="panel" style="margin-top:22px"><h2>Separate experiment: trend timing</h2><p class="small muted">Compare the SMA timing rule against buy-and-hold for one stock.</p><form id="replay-form"><div class="form-grid"><label>Stock<select name="symbol">${config.symbols.map((s) => `<option>${s}</option>`).join("")}</select></label><label>Strategy horizon<select name="horizon"><option value="1">1 year</option><option value="2">2 years</option><option value="5">5 years</option></select></label></div><button class="button" type="submit">Run chronological replay</button></form><div id="replay-result"></div>${explain("A different experiment", "This tests SMA timing, not the covariance allocation above. It applies 10 basis points of combined cost/slippage per exposure change and the same entry cost to buy-and-hold.")}</section>`
+    `<section class="panel"><div class="panel-head"><div><p class="eyebrow">RECORDED ALLOCATION EVALUATION</p><h2>${recommendation ? "Decision dated " + recommendation.cutoff : "Start with a recommendation"}</h2><p class="muted small">${recommendation ? "Evaluates the latest stored recommendation for this portfolio." : "Open Strategy lab to record a decision with a historical cutoff."}</p></div><a href="#strategy" class="button subtle">Strategy lab ↗</a></div><form id="evaluation-form"><div class="form-grid"><label>Evaluate through<input type="date" name="end" value="${config.historicalEnd || today()}" max="${config.historicalEnd || today()}" required></label></div><button class="button primary" ${recommendation ? "" : "disabled"}>Evaluate later observations →</button></form>${explain("No peeking into the future", "Entry uses the first shared observation strictly after the cutoff. At least 61 later shared observations are needed. An old cutoff analyzed today is historical replay, not observed future live performance.")}</section>${evaluation ? evaluationView() : ""}<section class="panel" style="margin-top:22px"><h2>Separate experiment: trend timing</h2><p class="small muted">Compare the SMA timing rule against buy-and-hold for one stock.</p><form id="replay-form"><div class="form-grid"><label>Stock<select name="symbol">${config.symbols.map((s) => `<option>${s}</option>`).join("")}</select></label><label>Strategy horizon<select name="horizon"><option value="1">1 year</option><option value="2">2 years</option><option value="5">5 years</option></select></label></div><button class="button" type="submit">Run chronological replay</button></form><div id="replay-result"></div>${explain("A different experiment", "This tests SMA timing, not the covariance allocation above. It applies 10 basis points of combined cost/slippage per exposure change and the same entry cost to buy-and-hold.")}</section>`
   );
 }
 function evaluationView() {
@@ -401,7 +409,7 @@ function guide() {
       "Follow this presentation outline directly through the app.",
       `<button class="button primary" data-action="start-tour">Start guided presentation →</button>`,
     ) +
-    `<div class="notice">This is a working software engineering simulator. Offline prices are synthetic, funds are virtual, and the application cannot send real brokerage orders.</div><div class="guide-grid">${[
+    `<div class="notice">This is a working software engineering simulator. The data provider is labeled on screen, funds are virtual, and the application cannot send real brokerage orders.</div><div class="guide-grid">${[
       [
         "01",
         "What problem does it solve?",
@@ -445,7 +453,7 @@ function guide() {
       [
         "06",
         "What are its limits?",
-        "Synthetic data demonstrates the workflow, not profitability. Live data access, realistic liquidity and corporate-action accounting need further work.",
+        "Historical data does not prove profitability. Verify data coverage and adjustment methods; realistic liquidity and corporate-action accounting need further work.",
         "AI explains computed results but cannot change numbers or execute trades. Human review matters.",
         "strategy",
         "Show the evidence",
@@ -492,9 +500,12 @@ async function render() {
               : await overview();
   $("#main").innerHTML =
     tourBanner() +
+    (config.historyNotice
+      ? `<div class="notice">${esc(config.historyNotice)}</div>`
+      : "") +
     content +
     (current() && route === "overview"
-      ? `<section class="panel" style="margin-top:22px"><p class="eyebrow">FINNHUB · LIVE INFORMATION</p><h2>Live prices &amp; news</h2><p class="muted">Real market information, separate from the synthetic analysis and simulated trades above. Refresh on demand; quotes are cached for 60 seconds and news for 15 minutes.</p><label>Live stock<select id="live-symbol">${config.symbols.map((s) => `<option>${s}</option>`).join("")}</select></label><button class="button primary" data-action="live-data">Load live prices &amp; news</button><div id="live-result" aria-live="polite"></div></section>`
+      ? `<section class="panel" style="margin-top:22px"><p class="eyebrow">FINNHUB · LIVE INFORMATION</p><h2>Live prices &amp; news</h2><p class="muted">Real market information, separate from historical analysis. Simulated execution requires fresh quotes. Refresh on demand; quotes are cached for 60 seconds and news for 15 minutes.</p><label>Live stock<select id="live-symbol">${config.symbols.map((s) => `<option>${s}</option>`).join("")}</select></label><button class="button primary" data-action="live-data">Load live prices &amp; news</button><div id="live-result" aria-live="polite"></div></section>`
       : "");
   if (renderedRoute !== route) {
     window.scrollTo(0, 0);

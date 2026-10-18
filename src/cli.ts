@@ -8,9 +8,16 @@ try {
     await migrate(db);
     console.log("Migrations applied");
   } else if (command === "seed") {
-    for (const symbol of SYMBOLS) await analysis.history(symbol, "2026-10-16");
-    console.log("Loaded 20 SYNTHETIC labeled series; no real stock history");
+    for (const symbol of trading.market.symbols || SYMBOLS)
+      await analysis.history(symbol, "2026-10-16");
+    console.log(
+      `Loaded 20 historical series from ${trading.market.sourceId || process.env.MARKET_PROVIDER || "offline synthetic"}; see stored provider and adjustment metadata.`,
+    );
   } else if (command === "demo") {
+    if (trading.market.sourceId)
+      throw Error(
+        "This canned transaction demo requires MARKET_PROVIDER=offline. CSV analysis is available through the dashboard; CSV mode uses fresh Finnhub quotes for trades.",
+      );
     console.log("SYNTHETIC OFFLINE DEMONSTRATION; simulated money only");
     const alice = await trading.user("Demo Alice"),
       bob = await trading.user("Demo Bob");

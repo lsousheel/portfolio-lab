@@ -26,12 +26,19 @@ export function app(
   app.use(express.static(path.resolve("public")));
   app.get("/app-config", (_req, res) =>
     res.json({
-      symbols: SYMBOLS,
-      provider:
-        process.env.MARKET_PROVIDER === "alpha"
+      symbols: trading.market.symbols || SYMBOLS,
+      sourceId: trading.market.sourceId,
+      historicalEnd: trading.market.sourceId ? "2026-10-02" : null,
+      historyNotice: trading.market.sourceId
+        ? "Supplied Nasdaq CSVs: 2016-10-04 to 2026-10-02. Adjustment method unverified; no 20-year coverage. Trading uses Finnhub quotes and requires an observation within five minutes."
+        : null,
+      provider: trading.market.sourceId
+        ? "Supplied Nasdaq CSV history"
+        : process.env.MARKET_PROVIDER === "alpha"
           ? "Alpha Vantage (may be delayed)"
           : "Synthetic offline data",
-      synthetic: process.env.MARKET_PROVIDER !== "alpha",
+      synthetic:
+        !trading.market.sourceId && process.env.MARKET_PROVIDER !== "alpha",
     }),
   );
   app.get("/health", (_req, res) =>

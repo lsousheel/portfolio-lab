@@ -5,6 +5,7 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
 COPY public ./public
+COPY data ./data
 COPY tests ./tests
 COPY migrations ./migrations
 RUN npm run build

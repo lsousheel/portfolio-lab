@@ -104,6 +104,7 @@ export class Analysis {
       coverage: history.coverage,
       provider: history.provider,
       warnings: history.warnings,
+      adjustmentStatus: history.adjustmentStatus,
       indicators: indicators(
         history.bars.map((b) => b.close),
         selectedH,
@@ -183,6 +184,14 @@ export class Analysis {
       [rid, pid],
     );
     check(r, "Recommendation not found", 404);
+    check(
+      !this.trading.market.sourceId ||
+        r.payload.details.every(
+          (d: any) => d.provider === this.trading.market.sourceId,
+        ),
+      "This recommendation uses a different dataset. Generate a new recommendation.",
+      409,
+    );
     return r;
   }
   async propose(user: string, pid: string, rid: string) {
@@ -249,7 +258,7 @@ export class Analysis {
           ? "historical forward-workflow replay"
           : "forward observation evaluation",
       assumptions:
-        "Fractional normalized analytical allocation, first subsequent adjusted close, static buy-and-hold weights; no simulator executions or fees. Not realized P&L.",
+        "Fractional normalized analytical allocation, first subsequent historical close, static buy-and-hold weights; no simulator executions or fees. Not realized P&L. Adjustment method follows the source metadata; not a verified total-return calculation.",
     };
     await this.trading.db.execute(
       "INSERT INTO evaluations(id,recommendation_id,end_date,payload) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE payload=VALUES(payload)",
@@ -259,6 +268,12 @@ export class Analysis {
   }
   async replay(symbol: string, cutoff: string, h: number) {
     const history = await this.history(symbol, cutoff);
-    return replay(history.bars, h);
+    return {
+      ...replay(history.bars, h),
+      provider: history.provider,
+      adjustmentStatus: history.adjustmentStatus,
+      warnings: history.warnings,
+      label: `historical replay; ${history.provider}; ${history.adjustmentStatus}; not point-in-time corporate-action data`,
+    };
   }
 }

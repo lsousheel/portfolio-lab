@@ -38,3 +38,7 @@ Source: evidence/assignment.pdf (all 4 pages read). M = mandatory assignment req
 Mandatory functionality is implemented; credential-backed live operation and Docker execution remain externally unverified. The optional independent second-conversation test-generation exploration was not performed, and no independent reviewer is claimed.
 
 | R31 U | User-requested explanatory frontend | public/ dashboard, presentation tour, owned recommendation list and scoped basket route | real browser walkthrough; static and scoped-basket integration test | frontend-guide.md; frontend-browser-checks.txt |
+
+## CSV data-source update
+
+The active app now uses the user's 20 Nasdaq-format CSV files, including CSCO/GS/INTC. R03/R04/R05/R06/R10 are exercised against the supplied observations by tests/csv-market.spec.ts. The dataset has 50,260 observations and approximately 10 years of coverage; full 20-year real history remains missing. Adjustment method remains unverified and is labeled explicitly. Original files, hashes and validation evidence are bundled. Finnhub is used for current quotes/news; CSV closes are never passed off as fresh execution prices. The synthetic provider remains for deterministic tests and the explicit offline demo.

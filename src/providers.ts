@@ -20,6 +20,8 @@ export type History = {
   warnings: string[];
 };
 export interface MarketProvider {
+  sourceId?: string;
+  symbols?: string[];
   history(symbol: string, cutoff: string): Promise<History>;
   quote(symbol: string): Promise<Quote>;
 }

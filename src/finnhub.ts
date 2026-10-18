@@ -4,6 +4,25 @@ import { SYMBOLS } from "./providers.js";
 
 // Informational live data only. Never mixed with synthetic portfolio pricing.
 export class Finnhub {
+  async quote(symbol: string) {
+    check(
+      [...SYMBOLS, "CSCO", "GS", "INTC"].includes(symbol),
+      "Choose a configured US stock",
+    );
+    const parsed = z
+      .object({ c: z.number().positive(), t: z.number().int().positive() })
+      .safeParse(await this.request("quote", { symbol }, 60000));
+    check(parsed.success, "No valid Finnhub quote returned", 502);
+    return {
+      symbol,
+      price: parsed.data.c.toFixed(4),
+      observedAt: new Date(parsed.data.t * 1000).toISOString(),
+      retrievedAt: new Date(this.now()).toISOString(),
+      provider: "finnhub",
+      currency: "USD" as const,
+      adjustmentStatus: "raw" as const,
+    };
+  }
   private cache = new Map<string, { until: number; value: unknown }>();
   private pending = new Map<string, Promise<any>>();
   private calls: number[] = [];
@@ -70,7 +89,10 @@ export class Finnhub {
     }
   }
   async snapshot(symbol: string) {
-    check(SYMBOLS.includes(symbol), "Choose a configured US stock");
+    check(
+      [...SYMBOLS, "CSCO", "GS", "INTC"].includes(symbol),
+      "Choose a configured US stock",
+    );
     const to = new Date(this.now()).toISOString().slice(0, 10);
     const from = new Date(this.now() - 7 * 86400000).toISOString().slice(0, 10);
     const results = await Promise.allSettled([

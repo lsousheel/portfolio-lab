@@ -1,6 +1,8 @@
 import { pool } from "./db.js";
 import { Trading } from "./trading.js";
 import { Analysis } from "./analysis.js";
+import { CsvMarket } from "./csv-market.js";
+import { Finnhub } from "./finnhub.js";
 import {
   AlphaVantage,
   OfflineProvider,
@@ -9,11 +11,14 @@ import {
   LocalAgent,
 } from "./providers.js";
 export function services() {
+  const finnhub = new Finnhub(process.env.FINNHUB_API_KEY || "");
   const db = pool(),
     live = process.env.MARKET_PROVIDER === "alpha",
     market = live
       ? new AlphaVantage(process.env.ALPHA_VANTAGE_KEY || "")
-      : new OfflineProvider();
+      : process.env.MARKET_PROVIDER === "csv"
+        ? new CsvMarket((symbol) => finnhub.quote(symbol))
+        : new OfflineProvider();
   const trading = new Trading(db, market);
   const agent = process.env.AI_URL
     ? new HttpAgent(process.env.AI_URL, process.env.AI_KEY || "")
@@ -23,5 +28,5 @@ export function services() {
     agent,
     live ? new AlphaNews(market as AlphaVantage) : undefined,
   );
-  return { db, trading, analysis };
+  return { db, trading, analysis, finnhub };
 }
