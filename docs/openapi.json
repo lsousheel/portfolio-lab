@@ -92,7 +92,11 @@
                       "type": "string"
                     }
                   },
-                  "required": ["id", "name", "token"]
+                  "required": [
+                    "id",
+                    "name",
+                    "token"
+                  ]
                 }
               }
             }
@@ -129,7 +133,9 @@
                     "maxLength": 80
                   }
                 },
-                "required": ["name"]
+                "required": [
+                  "name"
+                ]
               }
             }
           }
@@ -258,10 +264,16 @@
                 "properties": {
                   "horizon": {
                     "type": "integer",
-                    "enum": [1, 2, 5]
+                    "enum": [
+                      1,
+                      2,
+                      5
+                    ]
                   }
                 },
-                "required": ["horizon"]
+                "required": [
+                  "horizon"
+                ]
               }
             }
           }
@@ -384,7 +396,9 @@
                     "example": "10000.00"
                   }
                 },
-                "required": ["amount"]
+                "required": [
+                  "amount"
+                ]
               }
             }
           }
@@ -507,7 +521,10 @@
                   },
                   "side": {
                     "type": "string",
-                    "enum": ["BUY", "SELL"]
+                    "enum": [
+                      "BUY",
+                      "SELL"
+                    ]
                   },
                   "quantity": {
                     "type": "integer",
@@ -515,7 +532,11 @@
                     "maximum": 1000000
                   }
                 },
-                "required": ["symbol", "side", "quantity"]
+                "required": [
+                  "symbol",
+                  "side",
+                  "quantity"
+                ]
               }
             }
           }
@@ -717,7 +738,10 @@
                         },
                         "side": {
                           "type": "string",
-                          "enum": ["BUY", "SELL"]
+                          "enum": [
+                            "BUY",
+                            "SELL"
+                          ]
                         },
                         "quantity": {
                           "type": "integer",
@@ -725,13 +749,19 @@
                           "maximum": 1000000
                         }
                       },
-                      "required": ["symbol", "side", "quantity"]
+                      "required": [
+                        "symbol",
+                        "side",
+                        "quantity"
+                      ]
                     },
                     "minItems": 1,
                     "maxItems": 40
                   }
                 },
-                "required": ["legs"]
+                "required": [
+                  "legs"
+                ]
               }
             }
           }
@@ -805,14 +835,27 @@
                   },
                   "horizon": {
                     "type": "integer",
-                    "enum": [1, 2, 5]
+                    "enum": [
+                      1,
+                      2,
+                      5
+                    ]
                   },
                   "riskYears": {
                     "type": "integer",
-                    "enum": [1, 2, 5, 10, 20]
+                    "enum": [
+                      1,
+                      2,
+                      5,
+                      10,
+                      20
+                    ]
                   }
                 },
-                "required": ["symbols", "cutoff"]
+                "required": [
+                  "symbols",
+                  "cutoff"
+                ]
               }
             }
           }
@@ -1096,7 +1139,9 @@
                     "format": "date"
                   }
                 },
-                "required": ["end"]
+                "required": [
+                  "end"
+                ]
               }
             }
           }
@@ -1264,10 +1309,17 @@
                   },
                   "horizon": {
                     "type": "integer",
-                    "enum": [1, 2, 5]
+                    "enum": [
+                      1,
+                      2,
+                      5
+                    ]
                   }
                 },
-                "required": ["cutoff", "horizon"]
+                "required": [
+                  "cutoff",
+                  "horizon"
+                ]
               }
             }
           }
@@ -1325,7 +1377,10 @@
                     "format": "date-time"
                   }
                 },
-                "required": ["key", "cutoff"]
+                "required": [
+                  "key",
+                  "cutoff"
+                ]
               }
             }
           }
@@ -1440,13 +1495,67 @@
                           "type": "string"
                         }
                       },
-                      "required": ["portfolio", "token"]
+                      "required": [
+                        "portfolio",
+                        "token"
+                      ]
                     }
                   }
                 },
-                "required": ["key", "cutoff", "members"]
+                "required": [
+                  "key",
+                  "cutoff",
+                  "members"
+                ]
               }
             }
+          }
+        }
+      }
+    },
+    "/live/{symbol}": {
+      "get": {
+        "summary": "Finnhub informational quote and company news; separate from simulation; cached and rate limited",
+        "operationId": "get__live_symbol",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token"
+          },
+          "404": {
+            "description": "Absent or not owned"
+          },
+          "409": {
+            "description": "State or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid input, insufficient resources or stale quote"
+          },
+          "500": {
+            "description": "Internal error; transaction rolled back"
+          },
+          "503": {
+            "description": "Provider quota or availability error"
           }
         }
       }

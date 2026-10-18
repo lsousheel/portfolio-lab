@@ -490,7 +490,12 @@ async function render() {
             : route === "results"
               ? performance()
               : await overview();
-  $("#main").innerHTML = tourBanner() + content;
+  $("#main").innerHTML =
+    tourBanner() +
+    content +
+    (current() && route === "overview"
+      ? `<section class="panel" style="margin-top:22px"><p class="eyebrow">FINNHUB · LIVE INFORMATION</p><h2>Live prices &amp; news</h2><p class="muted">Real market information, separate from the synthetic analysis and simulated trades above. Refresh on demand; quotes are cached for 60 seconds and news for 15 minutes.</p><label>Live stock<select id="live-symbol">${config.symbols.map((s) => `<option>${s}</option>`).join("")}</select></label><button class="button primary" data-action="live-data">Load live prices &amp; news</button><div id="live-result" aria-live="polite"></div></section>`
+      : "");
   if (renderedRoute !== route) {
     window.scrollTo(0, 0);
     renderedRoute = route;
@@ -639,6 +644,11 @@ document.addEventListener("click", (e) => {
         esc(r.commentary.label),
         esc(r.commentary.text),
       );
+    }
+    if (name === "live-data") {
+      const result = await api("/live/" + $("#live-symbol").value);
+      $("#live-result").innerHTML =
+        `<p>${esc(result.symbol)} · Finnhub</p>${result.quote ? `<h3>${usd(result.quote.price)}</h3><p>Quote observed ${esc(result.quote.observedAt)} · ${result.quote.stale ? "Older quote / market may be closed" : "Recent quote"}</p>` : "<p>Quote unavailable</p>"}${result.warnings.map((w) => `<p class="negative">${esc(w)}</p>`).join("")}<h3>Recent company headlines</h3>${result.news.length ? `<ul>${result.news.map((n) => `<li><a href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">${esc(n.title)}</a><p class="small muted">${esc(n.source)} · ${esc(n.published)}</p></li>`).join("")}</ul>` : "<p>No headlines returned.</p>"}<p class="small muted">${esc(result.purpose)}</p>`;
     }
     if (name === "show-quote") {
       const s = $("#order-form select[name=symbol]").value,

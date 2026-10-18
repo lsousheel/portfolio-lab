@@ -5,7 +5,12 @@ import { Analysis } from "./analysis.js";
 import { DomainError, check } from "./domain.js";
 import { SYMBOLS } from "./providers.js";
 import path from "node:path";
-export function app(trading: Trading, analysis = new Analysis(trading)) {
+import { Finnhub } from "./finnhub.js";
+export function app(
+  trading: Trading,
+  analysis = new Analysis(trading),
+  finnhub = new Finnhub(process.env.FINNHUB_API_KEY || ""),
+) {
   const app = express();
   app.use(express.json({ limit: "100kb" }));
   app.use((req, _res, next) => {
@@ -59,6 +64,9 @@ export function app(trading: Trading, analysis = new Analysis(trading)) {
   const uid = (res: Response) => res.locals.user as string;
   const pid = (req: Request) => String(req.params.id);
   const key = (req: Request) => req.get("Idempotency-Key") || "";
+  app.get("/live/:symbol", async (req, res) => {
+    res.json(await finnhub.snapshot(String(req.params.symbol)));
+  });
   app.post("/baskets", async (req, res) => {
     const members = req.body.members;
     check(

@@ -92,3 +92,11 @@ See `docs/methodology.md`, `docs/traceability.md`, `docs/design-to-code.md`, `ev
 ## Latest verification audit
 
 See [the requirement audit](docs/audit-report.md) for tested workflows, fixes, raw test evidence, and remaining external checks.
+
+## Finnhub live prices and news (one API key)
+
+Set FINNHUB_API_KEY in your local .env and restart npm start. Keep MARKET_PROVIDER=offline for synthetic analysis and simulated execution. In Overview, scroll to Live prices & news, choose a stock, then click Load live prices & news. This authenticated informational panel uses Finnhub /quote and /company-news; it does not reprice synthetic portfolios or influence historical recommendations. No paid candle-history or streaming-news endpoint is called. Current company news is not presented as news available at a historical recommendation cutoff.
+
+The server sends the key in X-Finnhub-Token; it never sends it to the browser. Quotes cache for 60 seconds; headlines cache for 15 minutes; concurrent identical requests share one call. A process-wide panel instance permits at most 20 outbound calls per minute. Requests time out after five seconds; quota errors are not retried. Both endpoint calls count separately toward the provider's allowance. The panel shows partial results and errors, and labels quotes older than five minutes. A weekend/closed-market reading can be genuine but old. Keys belong in ignored .env, not source or the ZIP. Docker is optional and the user-selected native setup is used.
+
+Verified 18 October 2026: AAPL quote and eight headlines returned successfully; quote timestamp was the previous market close and was labeled older. Browser rendering verified. Full Jasmine suite: 50 specs, 0 failures (evidence/finnhub-full-tests.txt). These checks establish current access for this key, not permanent entitlement or unrestricted real-time coverage.

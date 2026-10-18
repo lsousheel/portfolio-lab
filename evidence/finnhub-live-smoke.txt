@@ -1,0 +1,10 @@
+{
+  "provider": "Finnhub",
+  "quote": {
+    "price": 343.46,
+    "observedAt": "2026-10-16T20:00:00.000Z",
+    "stale": true
+  },
+  "newsCount": 8,
+  "warnings": []
+}

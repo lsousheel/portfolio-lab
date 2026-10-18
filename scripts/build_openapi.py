@@ -39,6 +39,7 @@ paths['/admin/baskets']['post']['security']=[{'AdminBearer':[]}]
 route('/app-config','get','Public dashboard mode and configured symbols',public=True)
 route('/portfolios/{id}/recommendations','get','List owned portfolio recommendations',response={'type':'array','items':{'type':'object'}})
 route('/baskets','post','Execute only explicitly authorized participant portfolios',obj({'key':string,'cutoff':{'type':'string','format':'date-time'},'members':{'type':'array','minItems':1,'maxItems':20,'items':obj({'portfolio':string,'token':string})}}))
+route('/live/{symbol}','get','Finnhub informational quote and company news; separate from simulation; cached and rate limited')
 spec={'openapi':'3.1.0','info':{'title':'Programming Finance Simulator','version':'1.0.0','description':'Local academic simulation. Monetary values are decimal strings. No real brokerage or live execution. Synthetic default provider. Order failures leave pending orders unchanged; batches record business rejections.'},'servers':[{'url':'http://localhost:3000'}],'security':[{'LocalBearer':[]}],'components':{'securitySchemes':{'LocalBearer':{'type':'http','scheme':'bearer','description':'Token from POST /users; local demo only'},'AdminBearer':{'type':'http','scheme':'bearer','description':'ADMIN_TOKEN environment value'}}},'paths':paths}
 Path('docs/openapi.json').write_text(json.dumps(spec,indent=2))
 print(len(paths),'OpenAPI paths')
