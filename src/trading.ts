@@ -12,6 +12,7 @@ export class Trading {
     public market: MarketProvider,
     public now: () => Date = () => new Date(),
     public fault?: () => void,
+    public executionMode: "strict" | "demo-last-quote" = "strict",
   ) {}
   async user(name: string) {
     check(
@@ -175,9 +176,14 @@ export class Trading {
   }
   validateQuote(q: Quote) {
     const age = this.now().getTime() - new Date(q.observedAt).getTime();
+    const demo =
+      this.executionMode === "demo-last-quote" && q.provider === "finnhub";
+    const maxAge = demo ? 7 * 86400000 : 300000;
     check(
-      Number.isFinite(age) && age >= 0 && age <= 300000,
-      "Stale or future quote",
+      Number.isFinite(age) && age >= 0 && age <= maxAge,
+      demo
+        ? "Demo quote must be no older than seven days and not in the future"
+        : "Stale or future quote",
     );
     check(
       q.currency === "USD" &&
@@ -245,7 +251,7 @@ export class Trading {
     );
     await c.execute("UPDATE orders SET status='FILLED' WHERE id=?", [o.id]);
     await c.execute(
-      "INSERT INTO executions(id,order_id,batch_id,quantity,price,amount,observed_at) VALUES(?,?,?,?,?,?,?)",
+      "INSERT INTO executions(id,order_id,batch_id,quantity,price,amount,observed_at,execution_mode,quote_provider) VALUES(?,?,?,?,?,?,?,?,?)",
       [
         randomUUID(),
         o.id,
@@ -254,6 +260,8 @@ export class Trading {
         q.price,
         amount.toFixed(2),
         stamp(q.observedAt),
+        this.executionMode,
+        q.provider,
       ],
     );
     p.cash = cash.toFixed(2);

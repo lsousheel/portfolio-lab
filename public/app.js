@@ -301,7 +301,7 @@ function recommendationView(r) {
     )
     .join(
       "",
-    )}</div>${explain("What does this number mean?", "Annualized volatility estimates how much returns fluctuated. Lower means a smoother past path—not a guarantee of smaller future losses. All three use the same dates.")}<p class="small muted" style="margin-top:13px">${r.risk.from} to ${r.risk.to}. Current allocation includes cash.</p></section><section class="panel"><p class="eyebrow">YOUR STRATEGY</p><h2>Review ${esc(r.frequency)}.</h2><p class="muted">A long-only, minimum-variance allocation with a maximum target of 20% in one company.</p><p>Goal: <b>${r.horizon} years</b><br>Decision cutoff: <b>${r.cutoff}</b></p><button class="button primary" data-action="propose">Preview coordinated trades →</button><p class="small muted" style="margin-top:12px">A preview uses fresh quotes. You approve execution separately.</p></section></div><section class="panel"><div class="panel-head"><div><h2>Signals behind the recommendation</h2><p class="small muted">SMA = moving average · RSI = recent gains versus losses</p></div><button class="button subtle" data-action="explain-ai">Explain these results</button></div><div class="table-wrap"><table><thead><tr><th>Company</th><th>Trend</th><th>Fast SMA</th><th>Slow SMA</th><th>RSI (14)</th><th>Target allocation</th></tr></thead><tbody>${r.details.map((d, i) => `<tr><td><span class="ticker">${d.symbol}</span><span class="company">${names[d.symbol] || ""}</span></td><td><span class="tag ${d.indicators.signal === "downtrend" ? "red" : ""}">${esc(d.indicators.signal)}</span></td><td>${num(d.indicators.fast)}</td><td>${num(d.indicators.slow)}</td><td>${num(d.indicators.rsi)}</td><td>${pct(r.weights[i])}</td></tr>`).join("")}</tbody></table></div>${explain("Signals are context, not predictions", "An uptrend means the fast average is above the slow average. RSI summarizes recent price changes. Target weights come from covariance optimization, not from treating every uptrend as a buy instruction.")}<div id="ai-explanation"></div><details><summary>Coverage and calculation details</summary><p class="small muted">${esc(r.limitations.join(" · "))}</p><pre>${esc(JSON.stringify({ optimization: r.optimization, coverage: r.details.map((d) => ({ symbol: d.symbol, ...d.coverage, provider: d.provider })), intervals: r.details[0]?.intervals }, null, 2))}</pre></details></section>${proposal ? proposalView() : ""}`;
+    )}</div>${explain("What does this number mean?", "Annualized volatility estimates how much returns fluctuated. Lower means a smoother past path—not a guarantee of smaller future losses. All three use the same dates.")}<p class="small muted" style="margin-top:13px">${r.risk.from} to ${r.risk.to}. Current allocation includes cash.</p></section><section class="panel"><p class="eyebrow">YOUR STRATEGY</p><h2>Review ${esc(r.frequency)}.</h2><p class="muted">A long-only, minimum-variance allocation with a maximum target of 20% in one company.</p><p>Goal: <b>${r.horizon} years</b><br>Decision cutoff: <b>${r.cutoff}</b></p><button class="button primary" data-action="propose">Preview coordinated trades →</button><p class="small muted" style="margin-top:12px">A preview uses quotes under the displayed execution mode. You approve execution separately.</p></section></div><section class="panel"><div class="panel-head"><div><h2>Signals behind the recommendation</h2><p class="small muted">SMA = moving average · RSI = recent gains versus losses</p></div><button class="button subtle" data-action="explain-ai">Explain these results</button></div><div class="table-wrap"><table><thead><tr><th>Company</th><th>Trend</th><th>Fast SMA</th><th>Slow SMA</th><th>RSI (14)</th><th>Target allocation</th></tr></thead><tbody>${r.details.map((d, i) => `<tr><td><span class="ticker">${d.symbol}</span><span class="company">${names[d.symbol] || ""}</span></td><td><span class="tag ${d.indicators.signal === "downtrend" ? "red" : ""}">${esc(d.indicators.signal)}</span></td><td>${num(d.indicators.fast)}</td><td>${num(d.indicators.slow)}</td><td>${num(d.indicators.rsi)}</td><td>${pct(r.weights[i])}</td></tr>`).join("")}</tbody></table></div>${explain("Signals are context, not predictions", "An uptrend means the fast average is above the slow average. RSI summarizes recent price changes. Target weights come from covariance optimization, not from treating every uptrend as a buy instruction.")}<div id="ai-explanation"></div><details><summary>Coverage and calculation details</summary><p class="small muted">${esc(r.limitations.join(" · "))}</p><pre>${esc(JSON.stringify({ optimization: r.optimization, coverage: r.details.map((d) => ({ symbol: d.symbol, ...d.coverage, provider: d.provider })), intervals: r.details[0]?.intervals }, null, 2))}</pre></details></section>${proposal ? proposalView() : ""}`;
 }
 function proposalView() {
   return `<section class="panel" id="proposal-panel" style="margin-top:22px"><div class="panel-head"><div><p class="eyebrow">REVIEW BEFORE EXECUTING</p><h2>Your coordinated trade proposal</h2></div><span class="badge">${proposal.legs.length} legs</span></div><div class="table-wrap"><table><thead><tr><th>Stock</th><th>Action</th><th>Whole shares</th></tr></thead><tbody>${proposal.legs.map((l) => `<tr><td>${l.symbol}</td><td><span class="tag ${l.side === "SELL" ? "amber" : ""}">${l.side}</span></td><td>${l.quantity}</td></tr>`).join("")}</tbody></table></div><div class="split" style="margin-top:20px"><p>Estimated residual cash <b>${usd(proposal.residualCash)}</b></p><button class="button primary" data-action="execute-proposal" ${proposal.legs.length ? "" : "disabled"}>Approve & execute simulated trades</button></div>${explain("All legs commit together", "The server executes sells first and validates affordability again. If any leg fails, the whole rebalance rolls back. Quotes can change between preview and execution.")}</section>`;
@@ -329,12 +329,12 @@ async function trades() {
           )
     }</section><section class="panel" style="margin-top:22px"><h2>Execution ledger</h2>${
       a.executions.length
-        ? `<div class="table-wrap"><table><thead><tr><th>Order</th><th>Quantity</th><th>Fill price</th><th>Amount</th><th>Executed (UTC)</th></tr></thead><tbody>${a.executions
+        ? `<div class="table-wrap"><table><thead><tr><th>Order</th><th>Quantity</th><th>Fill price</th><th>Amount</th><th>Mode</th><th>Quote observed (UTC)</th><th>Executed (UTC)</th></tr></thead><tbody>${a.executions
             .slice()
             .reverse()
             .map(
               (e) =>
-                `<tr><td>${esc(e.order_id.slice(0, 8))}…</td><td>${e.quantity}</td><td>${usd(e.price)}</td><td>${usd(e.amount)}</td><td>${esc(e.executed_at)}</td></tr>`,
+                `<tr><td>${esc(e.order_id.slice(0, 8))}…</td><td>${e.quantity}</td><td>${usd(e.price)}</td><td>${usd(e.amount)}</td><td>${esc(e.execution_mode)}</td><td>${esc(e.observed_at)}</td><td>${esc(e.executed_at)}</td></tr>`,
             )
             .join("")}</tbody></table></div>`
         : empty(
@@ -429,7 +429,7 @@ function guide() {
       [
         "03",
         "How is trading kept consistent?",
-        "The server checks ownership, cash, holdings and fresh quotes. Transactions save related changes together, and request keys prevent duplicate fills.",
+        "The server checks ownership, cash, holdings and quote age under the selected execution mode. Transactions save related changes together, and request keys prevent duplicate fills.",
         "A failed buy does not lose cash. A coordinated rebalance completes every leg or none.",
         "trades",
         "Show an order",
@@ -503,9 +503,12 @@ async function render() {
     (config.historyNotice
       ? `<div class="notice">${esc(config.historyNotice)}</div>`
       : "") +
+    (config.executionNotice
+      ? `<div class="notice">${esc(config.executionNotice)}</div>`
+      : "") +
     content +
     (current() && route === "overview"
-      ? `<section class="panel" style="margin-top:22px"><p class="eyebrow">FINNHUB · LIVE INFORMATION</p><h2>Live prices &amp; news</h2><p class="muted">Real market information, separate from historical analysis. Simulated execution requires fresh quotes. Refresh on demand; quotes are cached for 60 seconds and news for 15 minutes.</p><label>Live stock<select id="live-symbol">${config.symbols.map((s) => `<option>${s}</option>`).join("")}</select></label><button class="button primary" data-action="live-data">Load live prices &amp; news</button><div id="live-result" aria-live="polite"></div></section>`
+      ? `<section class="panel" style="margin-top:22px"><p class="eyebrow">FINNHUB · LIVE INFORMATION</p><h2>Live prices &amp; news</h2><p class="muted">Real market information, separate from historical analysis. Simulated execution follows the mode displayed above. Refresh on demand; quotes are cached for 60 seconds and news for 15 minutes.</p><label>Live stock<select id="live-symbol">${config.symbols.map((s) => `<option>${s}</option>`).join("")}</select></label><button class="button primary" data-action="live-data">Load live prices &amp; news</button><div id="live-result" aria-live="polite"></div></section>`
       : "");
   if (renderedRoute !== route) {
     window.scrollTo(0, 0);

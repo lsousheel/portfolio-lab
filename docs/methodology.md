@@ -32,7 +32,7 @@ For proposals, equity is fresh-quote cash plus positions. Target whole shares ar
 
 ## Orders, concurrency, and baskets
 
-Quotes must be positive raw USD observations no older than five minutes and not in the future. Delayed daily quotes are rejected for execution. Whole shares only, maximum 1,000,000 per leg, and maximum 20 positive positions per portfolio. Monetary columns are DECIMAL, returned as strings. The ledger uses cents; raw quote prices carry four decimals.
+Quotes must be positive raw USD observations no older than five minutes and not in the future. This is the default strict policy. Explicit demo-last-quote mode permits Finnhub observations up to seven days old for hypothetical virtual fills, never future observations. The ledger preserves the original timestamp, provider and execution mode. Other providers retain the five-minute rule. Whole shares only, maximum 1,000,000 per leg, and maximum 20 positive positions per portfolio. Monetary columns are DECIMAL, returned as strings. The ledger uses cents; raw quote prices carry four decimals.
 
 State transitions: PENDING -> FILLED, CANCELLED, or REJECTED (batch business rejection). Direct execution errors leave the order PENDING for explicit correction/cancellation; no cash/holding/execution updates commit. No automatic partial fills: the simulator fills the complete order or rejects it. This is the defined partial-fill policy, not an unfinished partial-fill engine.
 

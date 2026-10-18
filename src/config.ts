@@ -20,6 +20,8 @@ export function services() {
         ? new CsvMarket((symbol) => finnhub.quote(symbol))
         : new OfflineProvider();
   const trading = new Trading(db, market);
+  if (process.env.EXECUTION_MODE === "demo-last-quote")
+    trading.executionMode = "demo-last-quote";
   const agent = process.env.AI_URL
     ? new HttpAgent(process.env.AI_URL, process.env.AI_KEY || "")
     : new LocalAgent();

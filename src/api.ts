@@ -28,9 +28,14 @@ export function app(
     res.json({
       symbols: trading.market.symbols || SYMBOLS,
       sourceId: trading.market.sourceId,
+      executionMode: trading.executionMode,
+      executionNotice:
+        trading.executionMode === "demo-last-quote"
+          ? "DEMO EXECUTION: virtual trades use the last available Finnhub quote (up to 7 days old). These are hypothetical fills, not live-market executions. Original quote timestamps are preserved."
+          : "STRICT EXECUTION: simulated trades require a quote no more than five minutes old.",
       historicalEnd: trading.market.sourceId ? "2026-10-02" : null,
       historyNotice: trading.market.sourceId
-        ? "Supplied Nasdaq CSVs: 2016-10-04 to 2026-10-02. Adjustment method unverified; no 20-year coverage. Trading uses Finnhub quotes and requires an observation within five minutes."
+        ? "Supplied Nasdaq CSVs: 2016-10-04 to 2026-10-02. Adjustment method unverified; no 20-year coverage."
         : null,
       provider: trading.market.sourceId
         ? "Supplied Nasdaq CSV history"

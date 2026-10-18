@@ -1,0 +1,29 @@
+{
+  "portfolio": [
+    {
+      "id": "8c7f9a8b-6c98-4054-9338-de993caf6b74",
+      "horizon": 2,
+      "cash": "8941.90"
+    }
+  ],
+  "holdings": [
+    {
+      "symbol": "MSFT",
+      "quantity": 2
+    }
+  ],
+  "executions": [
+    {
+      "id": "3b6d424e-4ab0-4faa-80d6-cefdb70e7934",
+      "order_id": "28b34f20-45e0-4fb0-b565-8c9caee18c46",
+      "batch_id": null,
+      "quantity": 2,
+      "price": "529.0500",
+      "amount": "1058.10",
+      "observed_at": "2026-10-16 20:00:00",
+      "executed_at": "2026-10-18 19:12:50.815",
+      "execution_mode": "demo-last-quote",
+      "quote_provider": "finnhub"
+    }
+  ]
+}

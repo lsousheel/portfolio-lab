@@ -25,3 +25,10 @@ Account shortcuts and bearer tokens are stored in this browser's localStorage fo
 `GET /app-config` exposes only the symbol universe and mode. `GET /portfolios/:id/recommendations` returns only an owned portfolio's recommendations. `POST /baskets` validates every participant token and portfolio ownership, requires the caller to participate, and supplies an explicit portfolio scope to the batch transaction. It does not expose the admin token or execute unrelated users' orders. Batch idempotency also binds the scope.
 
 The conceptual Report #1 remains a proposed server-side design. This frontend is a later, user-requested enhancement; it does not change the assignment's optional status for client-side work.
+
+## Weekend presentation mode
+Set EXECUTION_MODE=demo-last-quote in your local .env, run npm.cmd run build and npm.cmd run migrate, then restart npm.cmd start. Strict is the default in .env.example; it requires quotes within five minutes. Demo mode permits Finnhub quotes up to seven days old and retains their timestamps. It does not infer exchange opening hours. Both modes use virtual funds only.
+
+In Trade desk, choose a company, BUY or SELL and whole shares; click Queue order, then Execute on its pending row. Pending means queued, not automatically scheduled. A successful fill updates cash and holdings together. The execution ledger records mode, original quote time and execution time. A failed validation leaves the order pending so it can be retried or cancelled.
+
+Verified presentation account: BUY 2 MSFT at $529.05 using the 2026-10-16 20:00 UTC Finnhub observation. Starting cash $10,000.00, debit $1,058.10, remaining cash $8,941.90 and 2 MSFT shares. This is a hypothetical demo fill, not a live-market execution.
