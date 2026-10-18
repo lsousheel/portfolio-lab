@@ -45,3 +45,5 @@ Suggested demo cases: (1) cash-update rollback with retry; (2) provider outage a
 ## Final validation
 
 Final native MySQL suite: 35 Jasmine specs, 0 failures (14.21 s). Separate unit suite: 18 specs, 0 failures. Clean npm installation, typecheck, build, migrations, synthetic seed, complete demo, forward-evaluation worker, and real API process restart all executed successfully. Seven PDF pages visually inspected. Docker and credential-backed market/news/AI checks are explicitly unverified. No push, deployment or external message was performed.
+
+Report revision requested in page-7 PDF annotation: replaced the AI-assistance section with a first-person account of the user's actual structured instructions and follow-up. Revised PDF remains seven pages; page 7 rendered and visually checked. Editable source and delivery archive updated.
