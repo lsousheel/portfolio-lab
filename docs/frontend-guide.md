@@ -32,3 +32,8 @@ Set EXECUTION_MODE=demo-last-quote in your local .env, run npm.cmd run build and
 In Trade desk, choose a company, BUY or SELL and whole shares; click Queue order, then Execute on its pending row. Pending means queued, not automatically scheduled. A successful fill updates cash and holdings together. The execution ledger records mode, original quote time and execution time. A failed validation leaves the order pending so it can be retried or cancelled.
 
 Verified presentation account: BUY 2 MSFT at $529.05 using the 2026-10-16 20:00 UTC Finnhub observation. Starting cash $10,000.00, debit $1,058.10, remaining cash $8,941.90 and 2 MSFT shares. This is a hypothetical demo fill, not a live-market execution.
+
+## Easier navigation and trading
+Use Overview for the next recommended step, Investment plan for recommendations, Buy & sell for individual orders, Group trades for basket examples, and Performance for evaluation. Company selectors show names alongside symbols. The active account, portfolio selector and cash balance appear on every signed-in page.
+
+Trading now has explicit steps: Save order for review, then Complete trade. Awaiting your approval means the user still needs to act. Saving alone does not spend money. Success and failure messages remain visible and can be dismissed. Company selection and classroom rejection demonstrations are expandable advanced options. Quote policy remains visible; full source/coverage details can be expanded. Keyboard users have a skip link and visible focus indicators; narrow layouts use larger targets and stacked forms.

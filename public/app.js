@@ -67,6 +67,7 @@ const save = () => {
   else localStorage.removeItem("pf-active");
   if (chosenPortfolio) localStorage.setItem("pf-portfolio", chosenPortfolio);
 };
+let feedback = null;
 let toastTimer;
 function toast(message, error = false, persistent = false) {
   $("#status").textContent = message;
@@ -99,17 +100,50 @@ async function api(path, method = "GET", body, token = current()?.token) {
 async function action(message, fn) {
   if (busy) return;
   busy = true;
+  feedback = null;
+  $("#feedback")?.remove();
+  $("#main").setAttribute("aria-busy", "true");
   document.body.classList.add("busy");
   toast(message, false, true);
   try {
     await fn();
     $("#status").className = "";
   } catch (e) {
-    toast(e.message || "Something went wrong", true);
+    feedback = { error: true, message: e.message || "Something went wrong" };
+    showFeedback();
+    toast(feedback.message, true, true);
   } finally {
     busy = false;
+    $("#main").removeAttribute("aria-busy");
     document.body.classList.remove("busy");
   }
+}
+function showFeedback() {
+  $("#feedback")?.remove();
+  if (!feedback) return;
+  $("#main").insertAdjacentHTML(
+    "afterbegin",
+    `<div id="feedback" class="feedback ${feedback.error ? "failure" : "success"}" role="${feedback.error ? "alert" : "status"}"><strong>${feedback.error ? "We couldn’t complete that step." : "Done."}</strong> ${esc(feedback.message)}<button class="button subtle" data-action="dismiss-feedback">Dismiss</button></div>`,
+  );
+  $("#feedback").scrollIntoView({ block: "nearest" });
+}
+function nextStep() {
+  if (!portfolio) return "";
+  const funded =
+    Number(portfolio.cash) > 0 ||
+    portfolio.holdings.some((h) => h.quantity > 0);
+  const title = !funded
+    ? "Add practice money"
+    : !recommendation
+      ? "Explore an investment plan"
+      : "Review your plan, then decide whether to trade";
+  const copy = !funded
+    ? "Start with a virtual balance. No payment or bank account is needed."
+    : "See how your money could be spread across companies. Nothing is bought automatically.";
+  const button = !funded
+    ? '<button class="button primary" data-action="fund">Add practice money</button>'
+    : '<a class="button primary" href="#strategy">View investment plan →</a>';
+  return `<section class="next-step"><div><p class="eyebrow">START HERE · YOUR NEXT STEP</p><h2>${title}</h2><p>${copy}</p></div>${button}</section>`;
 }
 function accountDialog() {
   $("#account-select").innerHTML =
@@ -197,7 +231,7 @@ function welcome() {
       "Your investing story starts here.",
       "A hands-on workspace for understanding portfolios, risk, and simulated trading.",
     ) +
-    `<section class="intro"><div><p class="eyebrow">LEARN. EXPERIMENT. EXPLAIN.</p><h2>Make every decision<br>something you can explain.</h2><p class="muted">Follow a portfolio from its first virtual dollar to a recommendation, a coordinated trade, and an honest evaluation.</p><div class="two-buttons"><button class="button primary" data-action="accounts">Create your account →</button><button class="button" data-action="demo">Set up a two-user demo</button></div></div><div class="intro-art" aria-hidden="true"><span></span><span></span><span></span><span></span></div></section><div class="steps">${[
+    `<section class="intro"><div><p class="eyebrow">LEARN. EXPERIMENT. EXPLAIN.</p><h2>Make every decision<br>something you can explain.</h2><p class="muted">Follow a portfolio from its first virtual dollar to a recommendation, a coordinated trade, and an honest evaluation.</p><div class="two-buttons"><button class="button primary" data-action="accounts">Create your account →</button><a class="button" href="#guide">How it works</a></div></div><div class="intro-art" aria-hidden="true"><span></span><span></span><span></span><span></span></div></section><div class="steps">${[
       ["01", "Build a portfolio", "Choose a horizon and add simulated funds."],
       [
         "02",
@@ -268,9 +302,10 @@ async function overview() {
     heading(
       "Your portfolio, at a glance.",
       `Welcome back, ${esc(current().name)}. See where you stand before your next move.`,
-      picker(),
+      "",
     ) +
-    `<div class="cards">${card("Estimated portfolio value", usd(Number(portfolio.cash) + invested), "Cash + quoted value of holdings", true)}${card("Available cash", usd(portfolio.cash), "Ready for simulated trades")}${card("Companies held", held.length + ' <span style="font-size:14px;color:#82917d">/ 20</span>', "Diversify across different stocks")}${card("Investment horizon", portfolio.horizon + " years", "Your future investment goal")}</div><div class="grid"><section class="panel"><div class="panel-head"><div><h2>Market explorer</h2><p class="muted small">Last 252 observations · closing price</p></div><select id="chart-symbol" aria-label="Chart stock">${config.symbols.map((s) => `<option ${s === chartSymbol ? "selected" : ""}>${s}</option>`).join("")}</select></div><div class="split"><div><span class="stat-inline">${usd(bars.at(-1)?.close)}</span><p class="small ${change >= 0 ? "positive" : "negative"}">${pct(change)} over the displayed window</p></div><div class="legend"><i></i>${esc(names[chartSymbol])}</div></div><div class="chart">${lineChart(bars.map((b) => b.close))}</div><div class="chart-labels"><span>${bars[0]?.date || ""}</span><span>${bars.at(-1)?.date || ""}</span></div><p class="small muted" style="margin:12px 0 0">${esc(history.provider)} · Selected stock history, not your portfolio return.</p></section><section class="panel"><div class="panel-head"><div><h2>Your next move</h2><p class="small muted">A clear path from evidence to action</p></div><span class="tag">GUIDED</span></div><div class="stack"><div><h3>01 &nbsp; Add virtual funds</h3><p class="small muted">Give your portfolio a starting balance.</p><button class="button" data-action="fund">+ Add funds</button></div><div><h3>02 &nbsp; Find an allocation</h3><p class="small muted">Compare risk across selected companies.</p><a class="button primary" href="#strategy">Open strategy lab →</a></div></div>${explain("Cash is part of the portfolio", "An all-cash portfolio has zero stock-price volatility in this model. Buying stocks can increase risk even when diversified.")}</section></div><section class="panel"><div class="panel-head"><div><h2>Your holdings</h2><p class="small muted">Whole shares owned by this portfolio</p></div><a class="button subtle" href="#trades">Trade desk ↗</a></div>${held.length ? `<div class="table-wrap"><table><thead><tr><th>Company</th><th>Shares</th><th>Quote</th><th>Estimated value</th><th>Portfolio weight</th></tr></thead><tbody>${held.map((x) => `<tr><td><span class="ticker">${x.symbol}</span><span class="company">${names[x.symbol] || ""}</span></td><td>${x.quantity}</td><td>${usd(quotes[x.symbol].price)}</td><td>${usd(x.quantity * Number(quotes[x.symbol].price))}</td><td>${pct((x.quantity * Number(quotes[x.symbol].price)) / (Number(portfolio.cash) + invested))}</td></tr>`).join("")}</tbody></table></div>` : empty("Your cash is waiting for a plan.", "Generate a recommendation in Strategy lab, or place your first order in Trade desk.")}</section>`
+    nextStep() +
+    `<div class="cards">${card("Estimated portfolio value", usd(Number(portfolio.cash) + invested), "Cash + quoted value of holdings", true)}${card("Available cash", usd(portfolio.cash), "Ready for simulated trades")}${card("Companies held", held.length + ' <span style="font-size:14px;color:#82917d">/ 20</span>', "Diversify across different stocks")}${card("Investment horizon", portfolio.horizon + " years", "Your future investment goal")}</div><div class="grid"><section class="panel"><div class="panel-head"><div><h2>Market explorer</h2><p class="muted small">Last 252 observations · closing price</p></div><select id="chart-symbol" aria-label="Chart stock">${config.symbols.map((s) => `<option value="${s}" ${s === chartSymbol ? "selected" : ""}>${esc(names[s] || s)} (${s})</option>`).join("")}</select></div><div class="split"><div><span class="stat-inline">${usd(bars.at(-1)?.close)}</span><p class="small ${change >= 0 ? "positive" : "negative"}">${pct(change)} over the displayed window</p></div><div class="legend"><i></i>${esc(names[chartSymbol])}</div></div><div class="chart">${lineChart(bars.map((b) => b.close))}</div><div class="chart-labels"><span>${bars[0]?.date || ""}</span><span>${bars.at(-1)?.date || ""}</span></div><p class="small muted" style="margin:12px 0 0">${esc(history.provider)} · Selected stock history, not your portfolio return.</p></section><section class="panel"><div class="panel-head"><div><h2>Your next move</h2><p class="small muted">A clear path from evidence to action</p></div><span class="tag">GUIDED</span></div><div class="stack"><div><h3>01 &nbsp; Add virtual funds</h3><p class="small muted">Give your portfolio a starting balance.</p><button class="button" data-action="fund">+ Add funds</button></div><div><h3>02 &nbsp; Find an allocation</h3><p class="small muted">Compare risk across selected companies.</p><a class="button primary" href="#strategy">Open investment plan →</a></div></div>${explain("Cash is part of the portfolio", "An all-cash portfolio has zero stock-price volatility in this model. Buying stocks can increase risk even when diversified.")}</section></div><section class="panel"><div class="panel-head"><div><h2>Your holdings</h2><p class="small muted">Whole shares owned by this portfolio</p></div><a class="button subtle" href="#trades">Buy & sell ↗</a></div>${held.length ? `<div class="table-wrap"><table><thead><tr><th>Company</th><th>Shares</th><th>Quote</th><th>Estimated value</th><th>Portfolio weight</th></tr></thead><tbody>${held.map((x) => `<tr><td><span class="ticker">${x.symbol}</span><span class="company">${names[x.symbol] || ""}</span></td><td>${x.quantity}</td><td>${usd(quotes[x.symbol].price)}</td><td>${usd(x.quantity * Number(quotes[x.symbol].price))}</td><td>${pct((x.quantity * Number(quotes[x.symbol].price)) / (Number(portfolio.cash) + invested))}</td></tr>`).join("")}</tbody></table></div>` : empty("Your cash is waiting for a plan.", "Generate a recommendation in Investment plan, or place your first order in Buy & sell.")}</section>`
   );
 }
 function strategy() {
@@ -280,7 +315,7 @@ function strategy() {
       "Turn evidence into a strategy.",
       "Choose your horizon, inspect the signals, and decide whether to act.",
     ) +
-    `<section class="panel"><form id="strategy-form"><div class="form-grid"><label>Investment horizon<select name="horizon">${[1, 2, 5].map((h) => `<option value="${h}" ${h === (r?.horizon || portfolio.horizon) ? "selected" : ""}>${h} year${h > 1 ? "s" : ""}</option>`).join("")}</select></label><label>Historical risk window<select name="riskYears">${[1, 2, 5, 10, 20].map((h) => `<option value="${h}" ${h === (r?.lookbackYears || 2) ? "selected" : ""}>Past ${h} year${h > 1 ? "s" : ""}</option>`).join("")}</select></label><label>Decision cutoff<input type="date" name="cutoff" value="${r?.cutoff || "2025-10-16"}" max="${today()}" required></label></div><div class="split"><h3>Companies to consider <span class="muted small">5–20 · include all held stocks</span></h3><button type="button" class="button subtle" data-action="select-all">Select all 20</button></div><div class="symbols">${config.symbols.map((s) => `<label><input type="checkbox" name="symbol" value="${s}" ${!r || r.symbols.includes(s) ? "checked" : ""}>${s}</label>`).join("")}</div><button class="button primary" type="submit">Generate recommendation →</button><span class="small muted"> &nbsp; Analysis only. No trades are placed.</span></form>${explain("Horizon and history are different", "The horizon is how long you plan to invest. The historical window selects past observations used to estimate risk. An older cutoff lets you demonstrate evaluation against later observations.")}</section>${r ? recommendationView(r) : empty("Your recommendation will appear here.", "Calculate trend indicators and a minimum-variance allocation.")}`
+    `<section class="panel"><form id="strategy-form"><div class="form-grid"><label>How long do you plan to invest?<select name="horizon">${[1, 2, 5].map((h) => `<option value="${h}" ${h === (r?.horizon || portfolio.horizon) ? "selected" : ""}>${h} year${h > 1 ? "s" : ""}</option>`).join("")}</select></label><label>Past history to compare<select name="riskYears">${[1, 2, 5, 10, 20].map((h) => `<option value="${h}" ${h === (r?.lookbackYears || 2) ? "selected" : ""}>Past ${h} year${h > 1 ? "s" : ""}</option>`).join("")}</select></label><label>Use prices known on this date<input type="date" name="cutoff" value="${r?.cutoff || "2025-10-16"}" max="${today()}" required></label></div><div class="split"><h3>Companies to consider <span class="muted small">5–20 · include all held stocks</span></h3><button type="button" class="button subtle" data-action="select-all">Select all 20</button></div><details class="advanced"><summary>Choose companies (advanced)</summary><div class="symbols">${config.symbols.map((s) => `<label><input type="checkbox" name="symbol" value="${s}" ${!r || r.symbols.includes(s) ? "checked" : ""}>${esc(names[s] || s)} (${s})</label>`).join("")}</div></details><button class="button primary" type="submit">Generate recommendation →</button><span class="small muted"> &nbsp; Analysis only. No trades are placed.</span></form>${explain("Horizon and history are different", "The horizon is how long you plan to invest. The historical window selects past observations used to estimate risk. An older cutoff lets you demonstrate evaluation against later observations.")}</section>${r ? recommendationView(r) : empty("Your recommendation will appear here.", "Calculate trend indicators and a minimum-variance allocation.")}`
   );
 }
 function recommendationView(r) {
@@ -313,21 +348,21 @@ async function trades() {
       "Practice the trade. See the effect.",
       "Orders use whole shares and virtual money. Every successful fill is saved.",
     ) +
-    `<div class="grid"><section class="panel"><p class="eyebrow">NEW SIMULATED ORDER</p><form id="order-form"><div class="form-grid"><label>Company<select name="symbol">${config.symbols.map((s) => `<option>${s}</option>`).join("")}</select></label><label>Action<select name="side"><option>BUY</option><option>SELL</option></select></label><label>Whole shares<input type="number" name="quantity" value="3" min="1" max="1000000" step="1" required></label></div><div class="two-buttons"><button class="button primary" type="submit">Queue order</button><button class="button" type="button" data-action="show-quote">Check quote</button></div><p id="quote-display" class="small muted" style="margin-top:15px">Orders stay pending until executed or collected in a basket.</p></form></section><section class="panel"><p class="eyebrow">ACCOUNT CHECK</p><h2>${usd(portfolio.cash)} available</h2><p class="muted">Purchases cannot exceed cash. Sales cannot exceed owned shares.</p><button class="button" data-action="reject-demo">Demonstrate an insufficient-funds rejection</button>${explain("What to show in your presentation", "Queue an order, then execute it below. Compare cash and holdings. The database saves the fill and account changes in one transaction.")}</section></div><section class="panel"><div class="panel-head"><div><h2>Order activity</h2><p class="small muted">${a.orders.length} orders in this portfolio</p></div><button class="button subtle" data-action="refresh">Refresh ↻</button></div>${
+    `<div class="grid"><section class="panel"><p class="eyebrow">NEW SIMULATED ORDER</p><form id="order-form"><div class="form-grid"><label>Company<select name="symbol">${config.symbols.map((s) => `<option value="${s}">${esc(names[s] || s)} (${s})</option>`).join("")}</select></label><label>Action<select name="side"><option>BUY</option><option>SELL</option></select></label><label>Whole shares<input type="number" name="quantity" value="3" min="1" max="1000000" step="1" required></label></div><div class="two-buttons"><button class="button primary" type="submit">1. Save order for review</button><button class="button" type="button" data-action="show-quote">Check quote</button></div><p id="quote-display" class="small muted" style="margin-top:15px">Step 1 saves your order without spending money. Step 2: choose Complete trade in the list below. Pending means waiting for you, not processing.</p></form></section><section class="panel"><p class="eyebrow">ACCOUNT CHECK</p><h2>${usd(portfolio.cash)} available</h2><p class="muted">Purchases cannot exceed cash. Sales cannot exceed owned shares.</p><details class="advanced"><summary>Classroom demo: test the spending limit</summary><p>Creates an unaffordable practice order and cancels it after rejection.</p><button class="button" data-action="reject-demo">Run spending-limit example</button></details>${explain("How a trade works", "Save an order, then choose Complete trade below. Buying spends virtual cash and adds shares; selling removes owned shares and adds cash.")}</section></div><section class="panel"><div class="panel-head"><div><h2>Order activity</h2><p class="small muted">${a.orders.length} orders in this portfolio</p></div><button class="button subtle" data-action="refresh">Refresh ↻</button></div>${
       a.orders.length
         ? `<div class="table-wrap"><table><thead><tr><th>Company</th><th>Side</th><th>Quantity</th><th>Status</th><th>Action / reason</th></tr></thead><tbody>${a.orders
             .slice()
             .reverse()
             .map(
               (o) =>
-                `<tr><td><span class="ticker">${esc(o.symbol)}</span></td><td>${o.side}</td><td>${o.quantity}</td><td><span class="tag ${["REJECTED", "CANCELLED"].includes(o.status) ? "red" : o.status === "PENDING" ? "amber" : ""}">${o.status}</span></td><td>${o.status === "PENDING" ? `<div class="order-actions"><button class="button" data-action="execute-order" data-id="${o.id}">Execute</button><button class="button subtle" data-action="cancel-order" data-id="${o.id}">Cancel</button></div>` : esc(o.reason || "—")}</td></tr>`,
+                `<tr><td><span class="ticker">${esc(o.symbol)}</span></td><td>${o.side}</td><td>${o.quantity}</td><td><span class="tag ${["REJECTED", "CANCELLED"].includes(o.status) ? "red" : o.status === "PENDING" ? "amber" : ""}">${{ PENDING: "Awaiting your approval", FILLED: "Completed", CANCELLED: "Cancelled", REJECTED: "Not completed" }[o.status] || esc(o.status)}</span></td><td>${o.status === "PENDING" ? `<div class="order-actions"><button class="button" data-action="execute-order" data-id="${o.id}">Complete trade</button><button class="button subtle" data-action="cancel-order" data-id="${o.id}">Cancel</button></div>` : esc(o.reason || "—")}</td></tr>`,
             )
             .join("")}</tbody></table></div>`
         : empty(
             "No orders yet.",
             "Queue a buy or sell to start your audit trail.",
           )
-    }</section><section class="panel" style="margin-top:22px"><h2>Execution ledger</h2>${
+    }</section><section class="panel" style="margin-top:22px"><h2>Completed trades</h2>${
       a.executions.length
         ? `<div class="table-wrap"><table><thead><tr><th>Order</th><th>Quantity</th><th>Fill price</th><th>Amount</th><th>Mode</th><th>Quote observed (UTC)</th><th>Executed (UTC)</th></tr></thead><tbody>${a.executions
             .slice()
@@ -387,7 +422,7 @@ function performance() {
       "Did the recommendation hold up?",
       "Measure what happened after the decision. Keep comparisons honest.",
     ) +
-    `<section class="panel"><div class="panel-head"><div><p class="eyebrow">RECORDED ALLOCATION EVALUATION</p><h2>${recommendation ? "Decision dated " + recommendation.cutoff : "Start with a recommendation"}</h2><p class="muted small">${recommendation ? "Evaluates the latest stored recommendation for this portfolio." : "Open Strategy lab to record a decision with a historical cutoff."}</p></div><a href="#strategy" class="button subtle">Strategy lab ↗</a></div><form id="evaluation-form"><div class="form-grid"><label>Evaluate through<input type="date" name="end" value="${config.historicalEnd || today()}" max="${config.historicalEnd || today()}" required></label></div><button class="button primary" ${recommendation ? "" : "disabled"}>Evaluate later observations →</button></form>${explain("No peeking into the future", "Entry uses the first shared observation strictly after the cutoff. At least 61 later shared observations are needed. An old cutoff analyzed today is historical replay, not observed future live performance.")}</section>${evaluation ? evaluationView() : ""}<section class="panel" style="margin-top:22px"><h2>Separate experiment: trend timing</h2><p class="small muted">Compare the SMA timing rule against buy-and-hold for one stock.</p><form id="replay-form"><div class="form-grid"><label>Stock<select name="symbol">${config.symbols.map((s) => `<option>${s}</option>`).join("")}</select></label><label>Strategy horizon<select name="horizon"><option value="1">1 year</option><option value="2">2 years</option><option value="5">5 years</option></select></label></div><button class="button" type="submit">Run chronological replay</button></form><div id="replay-result"></div>${explain("A different experiment", "This tests SMA timing, not the covariance allocation above. It applies 10 basis points of combined cost/slippage per exposure change and the same entry cost to buy-and-hold.")}</section>`
+    `<section class="panel"><div class="panel-head"><div><p class="eyebrow">RECORDED ALLOCATION EVALUATION</p><h2>${recommendation ? "Decision dated " + recommendation.cutoff : "Start with a recommendation"}</h2><p class="muted small">${recommendation ? "Evaluates the latest stored recommendation for this portfolio." : "Open Investment plan to record a decision with a historical cutoff."}</p></div><a href="#strategy" class="button subtle">Investment plan ↗</a></div><form id="evaluation-form"><div class="form-grid"><label>Evaluate through<input type="date" name="end" value="${config.historicalEnd || today()}" max="${config.historicalEnd || today()}" required></label></div><button class="button primary" ${recommendation ? "" : "disabled"}>Evaluate later observations →</button></form>${explain("No peeking into the future", "Entry uses the first shared observation strictly after the cutoff. At least 61 later shared observations are needed. An old cutoff analyzed today is historical replay, not observed future live performance.")}</section>${evaluation ? evaluationView() : ""}<section class="panel" style="margin-top:22px"><h2>Separate experiment: trend timing</h2><p class="small muted">Compare the SMA timing rule against buy-and-hold for one stock.</p><form id="replay-form"><div class="form-grid"><label>Stock<select name="symbol">${config.symbols.map((s) => `<option value="${s}">${esc(names[s] || s)} (${s})</option>`).join("")}</select></label><label>Strategy horizon<select name="horizon"><option value="1">1 year</option><option value="2">2 years</option><option value="5">5 years</option></select></label></div><button class="button" type="submit">Run chronological replay</button></form><div id="replay-result"></div>${explain("A different experiment", "This tests SMA timing, not the covariance allocation above. It applies 10 basis points of combined cost/slippage per exposure change and the same entry cost to buy-and-hold.")}</section>`
   );
 }
 function evaluationView() {
@@ -469,20 +504,23 @@ function guide() {
 let renderedRoute;
 async function render() {
   const route = location.hash.slice(1) || "overview";
-  $$("#nav a").forEach((a) =>
-    a.classList.toggle("active", a.dataset.page === route),
-  );
+  $$("#nav a").forEach((a) => {
+    a.classList.toggle("active", a.dataset.page === route);
+    if (a.dataset.page === route) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
   $("#crumb").textContent =
     {
       overview: "Overview",
-      strategy: "Strategy lab",
-      trades: "Trade desk",
-      basket: "Basket trading",
+      strategy: "Investment plan",
+      trades: "Buy & sell",
+      basket: "Group trades",
       results: "Performance",
       guide: "Project guide",
     }[route] || "Overview";
-  $("#account-button").textContent =
-    current()?.name?.slice(0, 2).toUpperCase() || "U";
+  $("#account-button").textContent = current()
+    ? "Account: " + current().name
+    : "Create account";
   let content;
   if (route === "guide") content = guide();
   else if (!current()) content = welcome();
@@ -500,16 +538,15 @@ async function render() {
               : await overview();
   $("#main").innerHTML =
     tourBanner() +
-    (config.historyNotice
-      ? `<div class="notice">${esc(config.historyNotice)}</div>`
+    (portfolio
+      ? `<div class="workspace-context"><span>Practice account: <b>${esc(current().name)}</b></span>${picker()}<span>Cash: <b>${usd(portfolio.cash)}</b></span></div>`
       : "") +
-    (config.executionNotice
-      ? `<div class="notice">${esc(config.executionNotice)}</div>`
-      : "") +
+    `<div class="mode-note">Virtual money only · ${config.executionMode === "demo-last-quote" ? "Demo trades use the last available quote (up to 7 days old)." : "Trades require a recent quote (within 5 minutes)."} <details><summary>Data sources and trading rules</summary><p>${esc(config.historyNotice || "")}</p><p>${esc(config.executionNotice || "")}</p></details></div>` +
     content +
     (current() && route === "overview"
-      ? `<section class="panel" style="margin-top:22px"><p class="eyebrow">FINNHUB · LIVE INFORMATION</p><h2>Live prices &amp; news</h2><p class="muted">Real market information, separate from historical analysis. Simulated execution follows the mode displayed above. Refresh on demand; quotes are cached for 60 seconds and news for 15 minutes.</p><label>Live stock<select id="live-symbol">${config.symbols.map((s) => `<option>${s}</option>`).join("")}</select></label><button class="button primary" data-action="live-data">Load live prices &amp; news</button><div id="live-result" aria-live="polite"></div></section>`
+      ? `<section class="panel" style="margin-top:22px"><p class="eyebrow">FINNHUB · LIVE INFORMATION</p><h2>Live prices &amp; news</h2><p class="muted">Real market information, separate from historical analysis. Simulated execution follows the mode displayed above. Refresh on demand; quotes are cached for 60 seconds and news for 15 minutes.</p><label>Live stock<select id="live-symbol">${config.symbols.map((s) => `<option value="${s}">${esc(names[s] || s)} (${s})</option>`).join("")}</select></label><button class="button primary" data-action="live-data">Load live prices &amp; news</button><div id="live-result" aria-live="polite"></div></section>`
       : "");
+  showFeedback();
   if (renderedRoute !== route) {
     window.scrollTo(0, 0);
     renderedRoute = route;
@@ -592,6 +629,11 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-action]");
   if (!b) return;
   const name = b.dataset.action;
+  if (name === "dismiss-feedback") {
+    feedback = null;
+    showFeedback();
+    return;
+  }
   if (name === "accounts") {
     accountDialog();
     return;
@@ -672,10 +714,14 @@ document.addEventListener("click", (e) => {
     }
     if (name === "execute-order") {
       await api(base() + "/orders/" + b.dataset.id + "/execute", "POST", {});
+      feedback = {
+        message: "Trade completed. Your cash and shares have been updated.",
+      };
       await refresh();
     }
     if (name === "cancel-order") {
       await api(base() + "/orders/" + b.dataset.id + "/cancel", "POST", {});
+      feedback = { message: "Order cancelled. No trade was made." };
       await refresh();
     }
     if (name === "reject-demo") {
@@ -766,6 +812,10 @@ document.addEventListener("submit", (e) => {
         side: f.get("side"),
         quantity: Number(f.get("quantity")),
       });
+      feedback = {
+        message:
+          "Order saved. No money has been spent. Find it below and choose Complete trade when ready.",
+      };
       await refresh();
     }
     if (e.target.id === "evaluation-form") {
@@ -799,6 +849,10 @@ document.addEventListener("change", (e) => {
       await render();
     });
 });
+$(".skip-link").onclick = (e) => {
+  e.preventDefault();
+  $("#main").focus();
+};
 $("#account-button").onclick = accountDialog;
 $("#close-account").onclick = () => $("#account-dialog").close();
 $("#demo-setup").onclick = () =>
@@ -866,6 +920,7 @@ window.addEventListener("hashchange", () => {
 (async () => {
   try {
     config = await api("/app-config");
+    $("#demo-setup").hidden = !config.synthetic;
     $("#data-badge").textContent = config.provider;
     if (current()) await loadPortfolio();
     await render();
