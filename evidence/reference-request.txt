@@ -1,0 +1,245 @@
+Complete the attached “Programming Finance – Team Project” as a working, reproducible academic project. Read the entire PDF before working. Treat it as the authoritative specification.
+
+Work autonomously through design, implementation, testing, debugging, documentation, and packaging. Do not stop after producing a plan, scaffold, or partial implementation. Make reasonable decisions where details are unspecified and document them. Ask me only if an essential requirement cannot be resolved from the attachment or workspace.
+
+The aim is a complete result from this single instruction. Verify your work and resolve discovered failures yourself. Never claim that unexecuted checks passed or that bugs are impossible.
+
+1. Establish the requirements and inspect the workspace
+
+Read any applicable AGENTS.md and existing project files. Preserve existing work and adapt to a usable existing stack.
+
+Create a requirements traceability table linking each PDF requirement to its design element, implementation, tests, and documentation. Distinguish mandatory features from optional enhancements.
+
+Important requirements:
+- Server-side application; no custom frontend is required.
+- MySQL is mandatory. Do not substitute SQLite.
+- Jasmine tests are required.
+- Support investment horizons of 1, 2, and 5 years.
+- Support a portfolio of approximately 20 companies.
+- Analyze historical stock prices across different intervals over the last 20 years.
+- Suggest a trading strategy and trading frequency using technical analysis.
+- Support coordinated trades involving multiple stocks to reduce portfolio risk over a chosen interval.
+- Include a practical, simulated multi-user basket-trading feature.
+- Integrate external market information and an AI-agent interface.
+- Evaluate recommendations against subsequently observed market movements.
+- Preserve truthful evidence of AI use, design decisions, problems, fixes, test validation, and development versions.
+
+Do not invent requirements for later reports that are not supplied.
+
+2. Produce the conceptual design and Report #1 first
+
+Report #1 is explicitly a conceptual-design submission and does not require coding. Create a separate, submission-ready PDF of 5–10 pages, never exceeding 10 pages. Keep this report focused on the proposed system, even though this task also authorizes implementing it afterward.
+
+Include:
+- Project purpose, intended users, supported queries, and user goals.
+- A minimal set of established financial concepts.
+- A two- or three-sentence definition of each concept, with verified authoritative or established financial references.
+- A compact table of essential state attributes and operations for each concept.
+- Why the chosen concepts are necessary and collectively sufficient.
+- Concrete use cases.
+- Relationships between concepts and the effects of actions across them.
+- A readable conceptual diagram.
+- Explicit boundaries and assumptions, including simulated order execution.
+- A concise account of actual AI assistance used in preparing the design.
+
+Separate financial domain concepts from implementation services. Avoid creating unnecessary user-facing concepts.
+
+The PDF references Lecture #1 slides 13 and 17, which may not be provided. Do not fabricate their contents or imply you reviewed them. Identify this limitation briefly and use the supplied requirements.
+
+Do not invent team names, member names, or course details. Use neutral titles and clearly identified missing submission metadata where needed.
+
+Verify references through browsing when available. If access is blocked, distinguish unverified references from verified sources. Render the PDF and inspect every page for readability, page count, clipping, and diagram/table layout.
+
+Save the editable report source alongside the PDF.
+
+3. Implement a restrained, maintainable backend
+
+If no suitable project already exists, use:
+- Node.js with TypeScript.
+- Express REST API.
+- MySQL 8 and versioned SQL migrations.
+- mysql2 with parameterized queries and explicit transactions.
+- Jasmine for unit, integration, and API tests.
+- Docker Compose for reproducible database/application setup.
+- An OpenAPI specification and a console demonstration script.
+
+Use compatible stable dependencies, commit a lockfile, and document the supported Node version. Avoid unnecessary microservices, queues, frameworks, and frontend work.
+
+Separate domain logic, application services, persistence, external providers, API routes, and tests. Use dependency injection where it makes providers and time controllable.
+
+Persist users, portfolios, holdings, historical market data, recommendations, orders, executions, basket allocations, and evaluation records as appropriate to the design. Add foreign keys, uniqueness constraints, indexes, timestamps, and migrations.
+
+Use database decimal types and a decimal arithmetic library for monetary calculations. Define rounding rules and share-quantity rules consistently. Return precise monetary values safely in API responses.
+
+Use simulated trading only. Do not connect to a real brokerage or place real-money orders.
+
+4. Implement market data and external integrations honestly
+
+Create interchangeable market-data providers:
+- A live provider using a documented third-party API selected after checking its capabilities and access requirements.
+- A deterministic offline provider with clearly labeled fixtures for tests and demonstrations.
+
+Support historical daily prices and current quotes. Record provider, observation time, retrieval time, currency, adjustment status, and available coverage. Use adjusted price series appropriately for analysis, keeping them distinct from execution quotes.
+
+Request up to 20 years where available. Account for recent IPOs, market holidays, missing observations, duplicates, unordered records, splits, time zones, provider quotas, and unavailable symbols. Never label synthetic data as real historical data or delayed quotes as real-time quotes.
+
+If API credentials or free-tier limits prevent live verification, provide the real adapter and configuration instructions, run offline tests, and clearly report the unverified live capability. Do not silently replace live data with fixtures.
+
+Provide a news-provider interface and an AI-agent interface with optional credential-based implementations. Use timeouts, bounded retries, schema validation, and safe handling of external text.
+
+AI may explain computed signals or summarize retrieved news. It must not fabricate prices, alter calculated results, or execute trades. Core calculations and trading must work without an LLM key.
+
+5. Implement technical analysis and recommendations
+
+Use a small, explainable set of indicators, such as:
+- Simple moving averages and crossover signals.
+- RSI.
+- Historical returns and volatility.
+- Correlation and drawdown where relevant.
+
+Specify formulas, lookback windows, minimum data requirements, annualization assumptions, and signal rules. Correctly handle warm-up periods, constant prices, missing data, and insufficient history. Never fill unavailable indicators with misleading zero values.
+
+Analyze explicitly documented intervals within the available historical coverage. Support the three investment horizons with documented strategy parameters and suggested review/rebalance frequencies.
+
+Each recommendation must include:
+- Portfolio and horizon.
+- Data cutoff and coverage.
+- Indicator values and supporting signals.
+- Proposed strategy and trading/review frequency.
+- Suggested trades or allocation changes.
+- Risk measurements and relevant limitations.
+
+Keep calculations deterministic. Clearly distinguish the investment horizon from the historical lookback period.
+
+6. Implement coupled investment and risk reduction
+
+Implement a transparent portfolio-risk method using aligned historical returns and a covariance matrix.
+
+Use a maintainable approach such as a constrained minimum-variance allocation, with documented long-only, full-investment, diversification, and concentration constraints. Use a reliable numerical library or a clearly specified algorithm with convergence and feasibility checks.
+
+Compare proposed risk against the existing allocation and an equal-weight baseline using the same data window. Do not promise that every portfolio can achieve lower risk.
+
+Handle insufficient shared history, singular covariance matrices, constant-return assets, infeasible constraints, and numerical failures explicitly. Document any regularization.
+
+Translate target weights into a coordinated, affordable trade proposal with explicit rounding and residual cash. For a coordinated rebalance, define and implement atomic execution semantics.
+
+7. Implement correct simulated trading and basket trading
+
+Provide operations to create and inspect users and portfolios, fund simulated accounts, place/cancel orders, view holdings, inspect executions, generate recommendations, and submit coordinated rebalances.
+
+Validate ownership, symbols, amounts, quantities, and quote freshness. Use a simple local demo authentication mechanism with protected portfolio routes; never expose secrets in logs.
+
+Enforce:
+- No negative cash.
+- No selling more shares than owned.
+- No unsupported fractional shares.
+- No execution at missing, invalid, or stale prices.
+- No duplicate execution on retries.
+- Consistent cash, holdings, orders, and execution records after failures.
+
+Use database transactions, locking, idempotency keys, and clear state transitions. Test concurrent requests and transaction rollback.
+
+For basket trading:
+- Aggregate eligible orders from multiple users by symbol and side.
+- Preserve ownership of every underlying order and allocation.
+- Use documented aggregation windows and pricing rules.
+- Allocate fills deterministically and fairly.
+- Reconcile allocated quantities and money exactly to aggregate executions.
+- Define cancellation, partial-fill, rejection, and retry behavior.
+- Prevent one user’s funds from funding another user’s purchase.
+- Keep opposing buy/sell groups separate unless a separately documented netting model is implemented.
+
+Prefer a small, complete simulator over a complicated incomplete execution engine.
+
+8. Implement evaluation without look-ahead bias
+
+Provide chronological historical evaluation and a forward-evaluation workflow that records recommendations at time T and evaluates them only against later observations.
+
+Never use future prices to generate a signal or fill an order at a price unavailable when the decision was made. Document signal time, execution time, transaction costs, slippage assumptions, and benchmark rules.
+
+Report total return, drawdown, volatility, turnover, and an appropriate risk-adjusted measure when mathematically meaningful. Compare with buy-and-hold and an equal-weight baseline.
+
+Make forward evaluation usable through a CLI command or scheduled worker. Historical replay may demonstrate the workflow, but label it accurately; do not claim that future live performance has already been observed.
+
+9. Generate and independently validate meaningful Jasmine tests
+
+Write and execute tests covering:
+- Hand-calculated indicator examples.
+- Boundary cases and insufficient data.
+- Horizon validation.
+- Portfolio and allocation constraints.
+- Monetary precision and rounding.
+- Successful and rejected trades.
+- Insufficient funds and holdings.
+- Missing/stale quotes.
+- Duplicate submissions and idempotency conflicts.
+- Concurrent orders.
+- Rollback after an injected failure between related database updates.
+- Multi-user isolation.
+- Basket allocation reconciliation.
+- Provider timeouts and rate limits.
+- Chronological evaluation and look-ahead prevention.
+- Persistence after restarting the application.
+
+Run integration tests against a dedicated MySQL test database, not a replacement database.
+
+For several important cases, document expected results derived manually from small examples, invariants, or an independent calculation. Do not validate the implementation solely by copying its formulas into tests.
+
+Keep external network calls out of deterministic tests. Provide an optional, separately invoked live smoke test.
+
+10. Preserve honest AI-development evidence
+
+Maintain a development log as work happens. For each meaningful issue, record:
+- The requirement or observed problem.
+- How it was discovered.
+- The relevant actual AI instruction or interaction.
+- A concise before/after code snippet or patch.
+- The verification performed.
+- The corresponding commit or saved snapshot and test output.
+
+Preserve this original prompt as the initiating instruction. Do not invent follow-up prompts, human interventions, debugging incidents, or model transcripts. Distinguish actual available records from summaries of your own reasoning.
+
+Before implementation changes prompted by new boundary-case requirements, preserve a code/test baseline. The supplied PDF already mentions insufficient funds, missing prices, and inconsistent transactions: treat these as known requirements, not newly received hints. Provide a process for recording genuinely later instructor hints and preserving the pre-hint version.
+
+Create a design-to-implementation mapping and record real mismatches or design changes and their resolution. If no mismatch occurs, say so; do not fabricate one to satisfy a reporting item.
+
+Document AI contributions and human-review needs separately for requirements interpretation, design, code generation, test generation, and debugging. Select two or three real representative cases for a future demo when available.
+
+Use local commits if appropriate and permitted by repository instructions. Never push, publish, deploy, or overwrite remote history.
+
+11. Deliver documentation and a reproducible demonstration
+
+Provide:
+- Report #1 PDF and editable source.
+- Complete backend source and dependency lockfile.
+- MySQL migrations and clearly labeled demo seed data.
+- Docker Compose.
+- .env.example without secrets.
+- Jasmine tests.
+- OpenAPI documentation and sample requests.
+- README with exact setup, migration, seed, start, test, demo, and live-provider commands.
+- Requirements traceability.
+- Design-to-code mapping.
+- Development log and verification evidence.
+- A concise implementation/testing report clearly separated from Report #1.
+- A short final demonstration script.
+
+The console demo should create users and portfolios, load labeled market data, generate recommendations for supported horizons, propose a coordinated rebalance, execute a simulated basket, show cash/holdings changes, demonstrate a rejected trade, and display an evaluation result.
+
+Make the offline demo reproducible from a clean setup without paid API credentials.
+
+12. Finish only after verification
+
+Run dependency installation, type checking, build, migrations, Jasmine tests, and the complete demo. Verify persistence, transaction integrity, and the Report #1 PDF.
+
+Fix failures and rerun relevant checks until they pass or an external blocker is established. Do not hide failing tests, weaken valid assertions, or replace unfinished logic with success-shaped placeholders.
+
+If the environment prevents execution, distinguish implemented functionality from verified functionality and provide the exact remaining verification commands.
+
+Finish with a concise summary containing:
+- Deliverables and paths.
+- Exact commands to run the project.
+- Checks actually executed and their results.
+- Any externally blocked capability or missing submission metadata.
+
+Proceed now and complete the work without requiring additional routine prompts.
