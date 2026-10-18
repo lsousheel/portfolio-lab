@@ -1,0 +1,35 @@
+services:
+  db:
+    image: mysql:8.4.11
+    environment:
+      MYSQL_ROOT_PASSWORD: local-root-demo-only
+      MYSQL_DATABASE: pf
+      MYSQL_USER: pf
+      MYSQL_PASSWORD: local-demo-only
+    ports: ["127.0.0.1:3307:3306"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./scripts/init-docker.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  app:
+    build: .
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: pf
+      TEST_DB_NAME: pf_test
+      DB_USER: pf
+      DB_PASSWORD: local-demo-only
+      MARKET_PROVIDER: offline
+      ADMIN_TOKEN: local-basket-admin-change-me
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "npm run migrate && npm start"]
+volumes:
+  mysql-data:

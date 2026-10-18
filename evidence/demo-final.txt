@@ -1,0 +1,20 @@
+
+> programming-finance@1.0.0 demo
+> node dist/src/cli.js demo
+
+SYNTHETIC OFFLINE DEMONSTRATION; simulated money only
+Initial portfolios {
+  id: '66d0c233-a63a-44de-b2bc-12c197c3bf87',
+  user_id: 'b45eb270-18e1-4a5f-9c5b-15630573552d',
+  horizon: 1,
+  cash: '100000.00',
+  created_at: '2026-10-18 10:35:40.463',
+  holdings: []
+} {
+  id: '2e1f2a1a-a391-40fe-b3da-2065b835548e',
+  user_id: '606b8ae0-3b98-4e7f-a5dd-ebd76ec70e05',
+  horizon: 5,
+  cash: '100000.00',
+  created_at: '2026-10-18 10:35:40.465',
+  holdings: []
+}

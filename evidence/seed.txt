@@ -1,0 +1,5 @@
+
+> programming-finance@1.0.0 seed
+> node dist/src/cli.js seed
+
+Loaded 20 SYNTHETIC labeled series; no real stock history

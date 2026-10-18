@@ -1,1 +1,6 @@
-{"spec_dir":"dist/tests","spec_files":["**/*.spec.js"],"helpers":[],"env":{"random":false}}
+{
+  "spec_dir": "dist/tests",
+  "spec_files": ["**/*.spec.js"],
+  "helpers": [],
+  "env": { "random": false }
+}
