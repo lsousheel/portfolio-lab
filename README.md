@@ -88,3 +88,7 @@ npm run evaluate -- 2026-10-16
 The command evaluates stored recommendations with later observations, or prints why evaluation is pending/unavailable. At least 61 shared subsequent observations are required. Use a date no later than today. Rerunning upserts the same recommendation/end-date record. An actual recommendation created before subsequent market observations is labeled forward evaluation; replaying an old cutoff today is explicitly historical forward-workflow replay. There is no claim that future live performance has already been observed.
 
 See `docs/methodology.md`, `docs/traceability.md`, `docs/design-to-code.md`, `evidence/development-log.md`, and `docs/implementation-report.md` for formulas, constraints, implementation mapping, actual fixes, verification, and limitations.
+
+## Latest verification audit
+
+See [the requirement audit](docs/audit-report.md) for tested workflows, fixes, raw test evidence, and remaining external checks.

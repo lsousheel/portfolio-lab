@@ -72,7 +72,7 @@ try {
     const cutoff = new Date();
     console.log(
       "Multi-user basket",
-      await trading.basket("demo-" + a.id, cutoff),
+      await trading.basket("demo-" + a.id, cutoff, [a.id, b.id, a2.id]),
     );
     const bad = await trading.submit(
       bob.id,

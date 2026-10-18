@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { Trading } from "./trading.js";
-import { rows } from "./db.js";
+import { rows, transaction } from "./db.js";
 import {
   align,
   check,
@@ -28,22 +28,24 @@ export class Analysis {
       "Invalid or future cutoff",
     );
     const history = await this.trading.market.history(symbol, cutoff);
-    for (let i = 0; i < history.bars.length; i += 500) {
-      const chunk = history.bars.slice(i, i + 500);
-      const values = chunk.map((b) => [
-        symbol,
-        b.date,
-        b.close,
-        history.provider,
-        history.retrievedAt.slice(0, 23).replace("T", " "),
-        history.currency,
-        history.adjustmentStatus,
-      ]);
-      await this.trading.db.query(
-        "INSERT INTO prices(symbol,observed_date,adjusted_close,provider,retrieved_at,currency,adjustment_status) VALUES ? ON DUPLICATE KEY UPDATE adjusted_close=VALUES(adjusted_close),retrieved_at=VALUES(retrieved_at)",
-        [values],
-      );
-    }
+    await transaction(this.trading.db, async (connection) => {
+      for (let i = 0; i < history.bars.length; i += 5000) {
+        const chunk = history.bars.slice(i, i + 5000);
+        const values = chunk.map((b) => [
+          symbol,
+          b.date,
+          b.close,
+          history.provider,
+          history.retrievedAt.slice(0, 23).replace("T", " "),
+          history.currency,
+          history.adjustmentStatus,
+        ]);
+        await connection.query(
+          "INSERT INTO prices(symbol,observed_date,adjusted_close,provider,retrieved_at,currency,adjustment_status) VALUES ? ON DUPLICATE KEY UPDATE adjusted_close=VALUES(adjusted_close),retrieved_at=VALUES(retrieved_at)",
+          [values],
+        );
+      }
+    });
     return history;
   }
   async recommend(

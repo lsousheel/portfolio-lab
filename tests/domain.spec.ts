@@ -18,6 +18,17 @@ import {
   OfflineProvider,
 } from "../src/providers.js";
 describe("Financial domain: independently derived examples", () => {
+  it("sample covariance of returns [1,0] and [0,1] is +/- 0.5", () => {
+    expect(
+      covariance([
+        [1, 2, 2],
+        [1, 1, 2],
+      ]),
+    ).toEqual([
+      [0.5, -0.5],
+      [-0.5, 0.5],
+    ]);
+  });
   it("SMA arithmetic and warmup", () => {
     expect(sma([1, 2, 3, 4], 3)).toBe(3);
     expect(sma([1], 2)).toBeNull();

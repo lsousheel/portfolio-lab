@@ -1,0 +1,22 @@
+
+> programming-finance@1.0.0 test
+> npm run build && jasmine --config=tests/jasmine.json
+
+
+> programming-finance@1.0.0 build
+> tsc
+
+Started
+......................................F...
+
+Failures:
+1) Full requirement audit runs all horizons, 20-company analysis, proposals, explanation, evaluation and replay over HTTP
+  Message:
+    Error: Timeout - Async function did not complete within 120000ms (custom timeout)
+  Stack:
+        at <Jasmine>
+        at listOnTimeout (node:internal/timers:588:17)
+        at process.processTimers (node:internal/timers:523:7)
+
+42 specs, 1 failure
+Finished in 1140.547 seconds

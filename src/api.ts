@@ -8,6 +8,16 @@ import path from "node:path";
 export function app(trading: Trading, analysis = new Analysis(trading)) {
   const app = express();
   app.use(express.json({ limit: "100kb" }));
+  app.use((req, _res, next) => {
+    req.body ??= {};
+    if (
+      req.method === "POST" &&
+      (!req.body || typeof req.body !== "object" || Array.isArray(req.body))
+    ) {
+      return next(new DomainError("JSON object body required", 400));
+    }
+    next();
+  });
   app.use(express.static(path.resolve("public")));
   app.get("/app-config", (_req, res) =>
     res.json({
@@ -59,7 +69,7 @@ export function app(trading: Trading, analysis = new Analysis(trading)) {
     let hasCaller = false;
     for (const m of members) {
       check(
-        typeof m.token === "string" && typeof m.portfolio === "string",
+        m && typeof m.token === "string" && typeof m.portfolio === "string",
         "Invalid participant",
       );
       const owner = await trading.authenticate(m.token);

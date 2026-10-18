@@ -365,7 +365,10 @@ export class Trading {
     if (scope)
       check(scope.length > 0 && scope.length <= 20, "Invalid basket scope");
     const scoped = scope ? [...new Set(scope)].sort() : null;
-    check(key.length > 0 && key.length <= 100, "Invalid batch key");
+    check(
+      typeof key === "string" && key.length > 0 && key.length <= 100,
+      "Invalid batch key",
+    );
     check(
       Number.isFinite(cutoff.getTime()) && cutoff <= this.now(),
       "Invalid cutoff",

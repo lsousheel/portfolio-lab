@@ -1,0 +1,1 @@
+Final-code diagnostic: 20 synthetic stocks, available 20-year history through 2026-10-16; covariance plus per-stock metrics completed in 64.552 ms (single local observation, not an SLA). Provider generation and MySQL I/O were outside this timer. The financial formulas are unchanged.

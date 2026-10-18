@@ -27,9 +27,9 @@ export function returns(p: number[]) {
   return p.slice(1).map((x, i) => x / p[i] - 1);
 }
 export function variance(a: number[]) {
-  return a.length < 2
-    ? null
-    : a.reduce((s, x) => s + (x - mean(a)) ** 2, 0) / (a.length - 1);
+  if (a.length < 2) return null;
+  const average = mean(a);
+  return a.reduce((s, x) => s + (x - average) ** 2, 0) / (a.length - 1);
 }
 export function sma(a: number[], n: number) {
   return a.length < n ? null : mean(a.slice(-n));
@@ -117,11 +117,12 @@ export function align(series: Bar[][]) {
 }
 export function covariance(prices: number[][]) {
   const rr = prices.map(returns),
-    n = rr[0].length;
-  return rr.map((a) =>
+    n = rr[0].length,
+    means = rr.map(mean);
+  return rr.map((a, ai) =>
     rr.map(
-      (b) =>
-        a.reduce((s, x, i) => s + (x - mean(a)) * (b[i] - mean(b)), 0) /
+      (b, bi) =>
+        a.reduce((s, x, i) => s + (x - means[ai]) * (b[i] - means[bi]), 0) /
         (n - 1),
     ),
   );

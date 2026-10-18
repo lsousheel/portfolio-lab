@@ -1,0 +1,9 @@
+
+> programming-finance@1.0.0 test
+> npm run build && jasmine --config=tests/jasmine.json
+
+
+> programming-finance@1.0.0 build
+> tsc
+
+Started

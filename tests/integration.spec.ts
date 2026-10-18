@@ -365,3 +365,140 @@ it("serves the dashboard and scopes authorized browser baskets", async () => {
     ).status,
   ).toBe("PENDING");
 });
+
+describe("Full requirement audit", () => {
+  it("rejects missing/non-object bodies and malformed basket participants", async () => {
+    const { user, p } = await account(),
+      api = app(t);
+    await request(api).post("/users").expect(422);
+    await request(api).post("/users").send([]).expect(400);
+    await request(api)
+      .post("/baskets")
+      .set("Authorization", "Bearer " + user.token)
+      .send({ members: [null] })
+      .expect(422);
+    await request(api)
+      .post("/baskets")
+      .set("Authorization", "Bearer " + user.token)
+      .send({
+        members: [{ token: user.token, portfolio: p.id }],
+        cutoff: new Date().toISOString(),
+      })
+      .expect(422);
+    expect((await t.inspect(user.id, p.id)).cash).toBe("100.00");
+  });
+  for (const h of [1, 2, 5])
+    it(`runs horizon ${h}: 20-company analysis, proposals, explanation, evaluation and replay over HTTP`, async () => {
+      const { user, p } = await account("100000.00"),
+        api = app(t);
+      const auth = "Bearer " + user.token;
+      {
+        const r = await request(api)
+          .post(`/portfolios/${p.id}/recommendations`)
+          .set("Authorization", auth)
+          .send({
+            symbols: SYMBOLS,
+            cutoff: "2025-10-16",
+            horizon: h,
+            riskYears: h === 5 ? 20 : h,
+          })
+          .expect(201);
+        expect(r.body.weights.length).toBe(20);
+        expect(
+          r.body.weights.reduce((a: number, b: number) => a + b, 0),
+        ).toBeCloseTo(1, 7);
+        expect(
+          r.body.weights.every((w: number) => w >= 0 && w <= 0.20000001),
+        ).toBeTrue();
+        expect(r.body.risk.proposed).toBeLessThanOrEqual(
+          r.body.risk.equalWeight + 1e-8,
+        );
+        expect(r.body.horizon).toBe(h);
+        const base = `/portfolios/${p.id}/recommendations/${r.body.id}`;
+        await request(api).get(base).set("Authorization", auth).expect(200);
+        const proposal = await request(api)
+          .post(base + "/proposal")
+          .set("Authorization", auth)
+          .send({})
+          .expect(200);
+        expect(proposal.body.legs.length).toBeGreaterThan(0);
+        const explanation = await request(api)
+          .post(base + "/explain")
+          .set("Authorization", auth)
+          .send({})
+          .expect(200);
+        expect(explanation.body.computed.horizon).toBe(h);
+        expect(explanation.body.commentary).toBeTruthy();
+        const evaluation = await request(api)
+          .post(base + "/evaluate")
+          .set("Authorization", auth)
+          .send({ end: "2026-10-16" })
+          .expect(200);
+        expect(evaluation.body.executionDate > r.body.cutoff).toBeTrue();
+        await request(api)
+          .post("/market/AAPL/replay")
+          .set("Authorization", auth)
+          .send({ cutoff: "2026-10-16", horizon: h })
+          .expect(200);
+      }
+      const saved = await request(api)
+        .get(`/portfolios/${p.id}/recommendations`)
+        .set("Authorization", auth)
+        .expect(200);
+      expect(saved.body.length).toBe(1);
+    }, 120000);
+  it("replays committed rebalance during a quote outage without duplicate execution", async () => {
+    const { user, p } = await account();
+    const legs = [{ symbol: "AAPL", side: "BUY" as const, quantity: 2 }];
+    const first = await t.rebalance(user.id, p.id, legs, "retry");
+    provider.mode = "missing";
+    expect(await t.rebalance(user.id, p.id, legs, "retry")).toEqual(first);
+    expect((await t.inspect(user.id, p.id)).cash).toBe("75.00");
+    expect((await t.activity(user.id, p.id)).executions.length).toBe(1);
+  });
+  it("enforces the 20-position cap without preventing additions to an existing position", async () => {
+    const { user, p } = await account("10000.00");
+    await t.rebalance(
+      user.id,
+      p.id,
+      SYMBOLS.map((symbol) => ({ symbol, side: "BUY" as const, quantity: 1 })),
+      "twenty",
+    );
+    const extra = await t.submit(
+      user.id,
+      p.id,
+      { symbol: "IBM", side: "BUY", quantity: 1 },
+      "extra",
+    );
+    await expectAsync(
+      t.execute(user.id, p.id, extra.id, "extra-exec"),
+    ).toBeRejected();
+    const existing = await buy(user.id, p.id, 1);
+    await t.execute(user.id, p.id, existing.id, "existing");
+    const state = await t.inspect(user.id, p.id);
+    expect(state.holdings.filter((x: any) => x.quantity > 0).length).toBe(20);
+    expect(state.cash).toBe("9737.50");
+  });
+  it("keeps opposing basket sides separate and reconciles money on retry", async () => {
+    const a = await account(),
+      b = await account();
+    const initial = await buy(a.user.id, a.p.id, 2);
+    await t.execute(a.user.id, a.p.id, initial.id, "initial");
+    await t.submit(
+      a.user.id,
+      a.p.id,
+      { symbol: "AAPL", side: "SELL", quantity: 2 },
+      "sell",
+    );
+    await buy(b.user.id, b.p.id, 2);
+    const key = randomUUID(),
+      cutoff = new Date(),
+      scope = [a.p.id, b.p.id];
+    const batch = await t.basket(key, cutoff, scope);
+    expect(batch.groups["AAPL:BUY"]).toEqual({ quantity: 2, amount: "25.00" });
+    expect(batch.groups["AAPL:SELL"]).toEqual({ quantity: 2, amount: "25.00" });
+    expect(await t.basket(key, cutoff, scope)).toEqual(batch);
+    expect((await t.inspect(a.user.id, a.p.id)).cash).toBe("100.00");
+    expect((await t.inspect(b.user.id, b.p.id)).cash).toBe("75.00");
+  });
+});
