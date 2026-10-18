@@ -36,3 +36,5 @@ Source: evidence/assignment.pdf (all 4 pages read). M = mandatory assignment req
 | R30 U | Reproducible complete demo and verification | CLI, seed, native/Docker setup | build/migrate/test/demo outputs | implementation report |
 
 Mandatory functionality is implemented; credential-backed live operation and Docker execution remain externally unverified. The optional independent second-conversation test-generation exploration was not performed, and no independent reviewer is claimed.
+
+| R31 U | User-requested explanatory frontend | public/ dashboard, presentation tour, owned recommendation list and scoped basket route | real browser walkthrough; static and scoped-basket integration test | frontend-guide.md; frontend-browser-checks.txt |

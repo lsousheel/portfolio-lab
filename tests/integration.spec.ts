@@ -311,3 +311,57 @@ it("uses UTC sessions and excludes orders created after basket cutoff", async ()
       .status,
   ).toBe("PENDING");
 });
+
+it("uses application-clock order times at the exact batch boundary", async () => {
+  const { user, p } = await account();
+  const now = new Date("2026-01-15T12:00:00.123Z");
+  const clockProvider = new OfflineProvider(() => now),
+    clockTrading = new Trading(db, clockProvider, () => now);
+  const o = await clockTrading.submit(
+    user.id,
+    p.id,
+    { symbol: "AAPL", side: "BUY", quantity: 1 },
+    randomUUID(),
+  );
+  const [stored] = await rows(db, "SELECT created_at FROM orders WHERE id=?", [
+    o.id,
+  ]);
+  expect(stored.created_at).toBe("2026-01-15 12:00:00.123");
+  const result = await clockTrading.basket(randomUUID(), now, [p.id]);
+  expect(result.fills.length).toBe(1);
+});
+it("serves the dashboard and scopes authorized browser baskets", async () => {
+  const a = await account("1000.00"),
+    b = await account("1000.00"),
+    c = await account("1000.00");
+  const api = app(t);
+  await request(api).get("/").expect("Content-Type", /html/).expect(200);
+  await request(api).get("/app-config").expect(200);
+  await buy(a.user.id, a.p.id, 3);
+  await buy(b.user.id, b.p.id, 2);
+  const outside = await buy(c.user.id, c.p.id, 1);
+  const members = [
+    { portfolio: a.p.id, token: a.user.token },
+    { portfolio: b.p.id, token: b.user.token },
+  ];
+  await request(api)
+    .post("/baskets")
+    .set("Authorization", "Bearer " + a.user.token)
+    .send({
+      key: randomUUID(),
+      cutoff: new Date().toISOString(),
+      members: [members[0], { portfolio: c.p.id, token: b.user.token }],
+    })
+    .expect(404);
+  const result = await request(api)
+    .post("/baskets")
+    .set("Authorization", "Bearer " + a.user.token)
+    .send({ key: randomUUID(), cutoff: new Date().toISOString(), members })
+    .expect(200);
+  expect(result.body.groups["AAPL:BUY"].quantity).toBe(5);
+  expect(
+    (await t.activity(c.user.id, c.p.id)).orders.find(
+      (o: any) => o.id === outside.id,
+    ).status,
+  ).toBe("PENDING");
+});

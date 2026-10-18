@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#122d28" />
+    <title>Portfolio Lab · Learn by investing</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script defer src="/app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#overview"
+          ><span class="brand-icon">P<span>↗</span></span
+          ><span
+            >Portfolio<span class="brand-sub">LAB / FINANCE PROJECT</span></span
+          ></a
+        >
+        <p class="nav-label">YOUR WORKSPACE</p>
+        <nav aria-label="Main navigation" id="nav">
+          <a href="#overview" data-page="overview"><span>◫</span>Overview</a
+          ><a href="#strategy" data-page="strategy"
+            ><span>⌁</span>Strategy lab</a
+          ><a href="#trades" data-page="trades"><span>⇄</span>Trade desk</a
+          ><a href="#basket" data-page="basket"><span>▦</span>Basket trading</a
+          ><a href="#results" data-page="results"><span>↗</span>Performance</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <a href="#guide" class="guide-link"
+            >◎ &nbsp; Explain the project <span>↗</span></a
+          >
+          <div class="simulation-note">
+            <span class="dot"></span> SIMULATION ONLY
+            <p>
+              Practice with virtual funds.<br />No real brokerage connection.
+            </p>
+          </div>
+        </div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar">
+          <span class="breadcrumb"
+            >Programming Finance <span>/</span> <b id="crumb">Overview</b></span
+          >
+          <div class="top-actions">
+            <span class="badge" id="data-badge">Connecting…</span
+            ><button id="tour-button" class="button subtle">
+              Presentation mode</button
+            ><button
+              id="account-button"
+              class="avatar"
+              aria-label="Manage demo accounts"
+            >
+              U
+            </button>
+          </div>
+        </header>
+        <main id="main" tabindex="-1"></main>
+        <footer>
+          Portfolio Lab
+          <span>Built to explain decisions, not predict the future.</span>
+        </footer>
+      </div>
+    </div>
+    <div id="status" role="status" aria-live="polite"></div>
+    <dialog id="account-dialog">
+      <form id="account-form">
+        <button
+          type="button"
+          class="close"
+          id="close-account"
+          aria-label="Close account dialog"
+        >
+          ×
+        </button>
+        <p class="eyebrow">YOUR LOCAL WORKSPACE</p>
+        <h2>Start your investment lab.</h2>
+        <p class="muted">
+          Create a demo identity to save portfolios and simulated trades in
+          MySQL. Your demo token stays in this browser.
+        </p>
+        <label
+          >Your name<input
+            name="name"
+            placeholder="e.g. Alex"
+            required
+            maxlength="80"
+            autocomplete="given-name" /></label
+        ><button class="button primary" type="submit">Create account →</button>
+      </form>
+      <hr />
+      <label>Switch demo identity<select id="account-select"></select></label>
+      <div class="two-buttons">
+        <button id="demo-setup" class="button">
+          Create two funded demo accounts</button
+        ><button id="forget-account" class="button subtle">Sign out</button>
+      </div>
+      <details>
+        <summary>Use an existing API token</summary>
+        <form id="token-form">
+          <label
+            >Token<input
+              name="token"
+              type="password"
+              required
+              autocomplete="off" /></label
+          ><button class="button" type="submit">Connect account</button>
+        </form>
+      </details>
+      <p class="small muted">
+        Demo accounts are local to this browser. Signing out removes its active
+        selection, not its saved database records.
+      </p>
+    </dialog>
+  </body>
+</html>

@@ -137,8 +137,16 @@ export class Trading {
       async (c) => {
         const orderId = randomUUID();
         await c.execute(
-          "INSERT INTO orders(id,portfolio_id,symbol,side,quantity,status) VALUES(?,?,?,?,?,?)",
-          [orderId, id, leg.symbol, leg.side, leg.quantity, "PENDING"],
+          "INSERT INTO orders(id,portfolio_id,symbol,side,quantity,status,created_at) VALUES(?,?,?,?,?,?,?)",
+          [
+            orderId,
+            id,
+            leg.symbol,
+            leg.side,
+            leg.quantity,
+            "PENDING",
+            stamp(this.now().toISOString()),
+          ],
         );
         return { id: orderId, status: "PENDING" };
       },
@@ -353,7 +361,10 @@ export class Trading {
       },
     );
   }
-  async basket(key: string, cutoff: Date = this.now()) {
+  async basket(key: string, cutoff: Date = this.now(), scope?: string[]) {
+    if (scope)
+      check(scope.length > 0 && scope.length <= 20, "Invalid basket scope");
+    const scoped = scope ? [...new Set(scope)].sort() : null;
     check(key.length > 0 && key.length <= 100, "Invalid batch key");
     check(
       Number.isFinite(cutoff.getTime()) && cutoff <= this.now(),
@@ -368,6 +379,12 @@ export class Trading {
       );
       if (previous.length) {
         check(
+          JSON.stringify(previous[0].result.scope ?? null) ===
+            JSON.stringify(scoped),
+          "Batch scope conflict",
+          409,
+        );
+        check(
           stamp(previous[0].cutoff + "Z") === stamp(cutoff.toISOString()),
           "Batch key cutoff conflict",
           409,
@@ -376,8 +393,12 @@ export class Trading {
       }
       const candidates = await rows(
         c,
-        "SELECT * FROM orders WHERE status='PENDING' AND created_at<=? ORDER BY created_at,id",
-        [stamp(cutoff.toISOString())],
+        "SELECT * FROM orders WHERE status='PENDING' AND created_at<=?" +
+          (scoped
+            ? ` AND portfolio_id IN (${scoped.map(() => "?").join(",")})`
+            : "") +
+          " ORDER BY created_at,id",
+        [stamp(cutoff.toISOString()), ...(scoped || [])],
       );
       check(candidates.length <= 1000, "Batch exceeds 1000 orders");
       const portfolios = new Map<string, any>();
@@ -446,6 +467,7 @@ export class Trading {
         };
       }
       const result = {
+        scope: scoped,
         id: key,
         cutoff: cutoff.toISOString(),
         fills,

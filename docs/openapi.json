@@ -817,6 +817,53 @@
             }
           }
         }
+      },
+      "get": {
+        "summary": "List owned portfolio recommendations",
+        "operationId": "get__portfolios_id_recommendations",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token"
+          },
+          "404": {
+            "description": "Absent or not owned"
+          },
+          "409": {
+            "description": "State or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid input, insufficient resources or stale quote"
+          },
+          "500": {
+            "description": "Internal error; transaction rolled back"
+          },
+          "503": {
+            "description": "Provider quota or availability error"
+          }
+        }
       }
     },
     "/portfolios/{id}/recommendations/{rid}": {
@@ -1288,6 +1335,120 @@
             "AdminBearer": []
           }
         ]
+      }
+    },
+    "/app-config": {
+      "get": {
+        "summary": "Public dashboard mode and configured symbols",
+        "operationId": "get__app-config",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token"
+          },
+          "404": {
+            "description": "Absent or not owned"
+          },
+          "409": {
+            "description": "State or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid input, insufficient resources or stale quote"
+          },
+          "500": {
+            "description": "Internal error; transaction rolled back"
+          },
+          "503": {
+            "description": "Provider quota or availability error"
+          }
+        },
+        "security": []
+      }
+    },
+    "/baskets": {
+      "post": {
+        "summary": "Execute only explicitly authorized participant portfolios",
+        "operationId": "post__baskets",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token"
+          },
+          "404": {
+            "description": "Absent or not owned"
+          },
+          "409": {
+            "description": "State or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid input, insufficient resources or stale quote"
+          },
+          "500": {
+            "description": "Internal error; transaction rolled back"
+          },
+          "503": {
+            "description": "Provider quota or availability error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "cutoff": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "members": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "portfolio": {
+                          "type": "string"
+                        },
+                        "token": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["portfolio", "token"]
+                    }
+                  }
+                },
+                "required": ["key", "cutoff", "members"]
+              }
+            }
+          }
+        }
       }
     }
   }

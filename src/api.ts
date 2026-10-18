@@ -3,9 +3,22 @@ import { Trading } from "./trading.js";
 import { rows } from "./db.js";
 import { Analysis } from "./analysis.js";
 import { DomainError, check } from "./domain.js";
+import { SYMBOLS } from "./providers.js";
+import path from "node:path";
 export function app(trading: Trading, analysis = new Analysis(trading)) {
   const app = express();
   app.use(express.json({ limit: "100kb" }));
+  app.use(express.static(path.resolve("public")));
+  app.get("/app-config", (_req, res) =>
+    res.json({
+      symbols: SYMBOLS,
+      provider:
+        process.env.MARKET_PROVIDER === "alpha"
+          ? "Alpha Vantage (may be delayed)"
+          : "Synthetic offline data",
+      synthetic: process.env.MARKET_PROVIDER !== "alpha",
+    }),
+  );
   app.get("/health", (_req, res) =>
     res.json({ status: "ok", mode: "simulated" }),
   );
@@ -36,6 +49,39 @@ export function app(trading: Trading, analysis = new Analysis(trading)) {
   const uid = (res: Response) => res.locals.user as string;
   const pid = (req: Request) => String(req.params.id);
   const key = (req: Request) => req.get("Idempotency-Key") || "";
+  app.post("/baskets", async (req, res) => {
+    const members = req.body.members;
+    check(
+      Array.isArray(members) && members.length >= 1 && members.length <= 20,
+      "Choose 1-20 authorized portfolios",
+    );
+    const ids: string[] = [];
+    let hasCaller = false;
+    for (const m of members) {
+      check(
+        typeof m.token === "string" && typeof m.portfolio === "string",
+        "Invalid participant",
+      );
+      const owner = await trading.authenticate(m.token);
+      await trading.inspect(owner.id, m.portfolio);
+      if (owner.id === uid(res)) hasCaller = true;
+      ids.push(m.portfolio);
+    }
+    check(hasCaller, "Your portfolio must participate", 403);
+    res.json(
+      await trading.basket(req.body.key, new Date(req.body.cutoff), ids),
+    );
+  });
+  app.get("/portfolios/:id/recommendations", async (req, res) => {
+    await trading.inspect(uid(res), pid(req));
+    res.json(
+      await rows(
+        trading.db,
+        "SELECT id,cutoff,payload FROM recommendations WHERE portfolio_id=? ORDER BY created_at DESC",
+        [pid(req)],
+      ),
+    );
+  });
   app.get("/me", async (req, res) => {
     res.json(
       await trading.authenticate(

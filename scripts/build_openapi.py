@@ -36,6 +36,9 @@ route('/market/{symbol}/quote','get','Read quote including observation time; may
 route('/market/{symbol}/replay','post','Chronological SMA strategy with 10 bps one-way total costs',obj({'cutoff':{'type':'string','format':'date'},'horizon':{'type':'integer','enum':[1,2,5]}}))
 route('/admin/baskets','post','Admin: collect all pending orders through fixed cutoff; full fills',obj({'key':string,'cutoff':{'type':'string','format':'date-time'}}))
 paths['/admin/baskets']['post']['security']=[{'AdminBearer':[]}]
+route('/app-config','get','Public dashboard mode and configured symbols',public=True)
+route('/portfolios/{id}/recommendations','get','List owned portfolio recommendations',response={'type':'array','items':{'type':'object'}})
+route('/baskets','post','Execute only explicitly authorized participant portfolios',obj({'key':string,'cutoff':{'type':'string','format':'date-time'},'members':{'type':'array','minItems':1,'maxItems':20,'items':obj({'portfolio':string,'token':string})}}))
 spec={'openapi':'3.1.0','info':{'title':'Programming Finance Simulator','version':'1.0.0','description':'Local academic simulation. Monetary values are decimal strings. No real brokerage or live execution. Synthetic default provider. Order failures leave pending orders unchanged; batches record business rejections.'},'servers':[{'url':'http://localhost:3000'}],'security':[{'LocalBearer':[]}],'components':{'securitySchemes':{'LocalBearer':{'type':'http','scheme':'bearer','description':'Token from POST /users; local demo only'},'AdminBearer':{'type':'http','scheme':'bearer','description':'ADMIN_TOKEN environment value'}}},'paths':paths}
 Path('docs/openapi.json').write_text(json.dumps(spec,indent=2))
 print(len(paths),'OpenAPI paths')

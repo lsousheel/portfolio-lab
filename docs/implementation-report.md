@@ -52,3 +52,9 @@ More verification work was needed around financial timing, database transactions
 Run the native or Docker commands in README.md. To inspect development versions, use the local Git commits or clone the included `development-history.bundle` into a separate directory. The archive contains source and evidence, not node_modules, database binaries, credentials from external services, or the live MySQL data directory. `npm ci`, migrate, seed and demo rebuild the exercise.
 
 Recommended final presentation cases: atomic rollback, idempotent replay during an outage, and UTC cutoff correction. Each has an actual observed issue or invariant, a saved baseline and a regression. The course's later hint process is documented without pretending a new hint was received.
+
+## Later frontend enhancement (user requested)
+
+A browser dashboard now ships in public/ and is served by the same Express application. It adds a presentation tour, explanatory finance notes and views for accounts, holdings, market history, recommendations, preview/approval of coordinated trades, order activity, authorized two-user baskets, and evaluation results. See frontend-guide.md for a classroom walkthrough. Report #1 remains the original conceptual design; the optional client-side scope was explicitly added afterward.
+
+Verification update: the user supplied a real run with two basket test failures. A fresh baseline reproduced one. Diagnostics identified MySQL timestamps several milliseconds ahead of Node's immediate cutoff. Explicit application-clock order timestamps fixed this separate clock-source problem; UTC session normalization alone was insufficient. Added fixed-clock boundary and browser-basket authorization tests. Expanded Jasmine suite passed twice: 37 specs, 0 failures. No assertion was removed or weakened. Raw logs are in evidence/frontend-tests*.txt.

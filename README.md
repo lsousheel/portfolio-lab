@@ -2,7 +2,24 @@
 
 Report #1 is the separate seven-page conceptual-design PDF in `output/pdf/report-1-conceptual-design.pdf`. Editable source: `docs/build_report.py`. Add team/member names and review the missing Lecture #1 slides before submission. No later course-report format has been invented.
 
-This is a Node 22 + TypeScript + Express + MySQL 8.4 backend. No frontend and no brokerage connection. The default provider generates deterministic **synthetic** histories for 20 company symbols. Those symbols do not make the generated data real. All funds and executions are simulated.
+This is a Node 22 + TypeScript + Express + MySQL 8.4 backend. Includes a local browser dashboard; no brokerage connection. The default provider generates deterministic **synthetic** histories for 20 company symbols. Those symbols do not make the generated data real. All funds and executions are simulated.
+
+## Open the dashboard
+
+If the old server is running, press **Ctrl+C** in that terminal first. Then:
+
+```powershell
+npm.cmd run build
+npm.cmd start
+```
+
+Open **http://localhost:3000**. No separate frontend installation or build is required; Express serves `public/` from the same origin as the API. If using Docker, rebuild with `docker compose up --build -d`.
+
+Click **Set up a two-user demo**, then **Presentation mode**. It walks through Overview, Strategy lab, Trade desk, Basket trading, Performance, and Explain the project. The on-screen notes provide talking points and define the finance terms. Both demo accounts get 100,000 virtual dollars; no shares are purchased automatically.
+
+Use the account button at top right to switch identities or connect an existing token. Browser-local demo tokens are stored in localStorage; use only a trusted local browser. Database portfolios survive an app restart; clearing browser storage removes the local identity shortcuts, so retain your original API token if you need to reconnect. The command-line demo does not expose its tokens, so its automatically generated identities are separate from browser-created demo identities.
+
+For a full demonstration, generate a recommendation with the default historical cutoff, preview and approve its coordinated trades, queue/execute a single order, then queue and execute a two-user basket. Performance compares the stored recommendation against later prices. See `docs/frontend-guide.md` for an exact walkthrough.
 
 ## Quick start with Docker
 

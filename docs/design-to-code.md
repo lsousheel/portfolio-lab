@@ -17,3 +17,5 @@ A deliberate refinement separates the investment horizon from an optional `riskY
 Financial basket trading ordinarily concerns several securities, whereas the assignment also asks to aggregate users buying the same stock. The implementation therefore exposes a single-portfolio atomic rebalance and a separate multi-user operator batch. Both preserve an order-level audit trail. This avoids treating shared execution as shared money.
 
 The optimizer proposal is not claimed to be the same strategy as the SMA timing replay. Recorded allocation evaluation measures the optimizer weights; replay measures SMA timing. Both are labeled, and this distinction is documented rather than hidden behind one performance number.
+
+Frontend enhancement: user-authorized local dashboard in public/ implements the same five concepts through visible portfolio, strategy, trade, basket and evaluation views. A scoped /baskets endpoint authorizes every participant before invoking the existing transaction service. No admin secret is sent to the browser. See frontend-guide.md for the presentation mapping.

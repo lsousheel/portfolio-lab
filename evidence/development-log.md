@@ -47,3 +47,11 @@ Suggested demo cases: (1) cash-update rollback with retry; (2) provider outage a
 Final native MySQL suite: 35 Jasmine specs, 0 failures (14.21 s). Separate unit suite: 18 specs, 0 failures. Clean npm installation, typecheck, build, migrations, synthetic seed, complete demo, forward-evaluation worker, and real API process restart all executed successfully. Seven PDF pages visually inspected. Docker and credential-backed market/news/AI checks are explicitly unverified. No push, deployment or external message was performed.
 
 Report revision requested in page-7 PDF annotation: replaced the AI-assistance section with a first-person account of the user's actual structured instructions and follow-up. Revised PDF remains seven pages; page 7 rendered and visually checked. Editable source and delivery archive updated.
+
+## Frontend follow-up and basket timing fix
+
+User requested a good frontend to understand and explain the project, and supplied the actual failing npm-test output. The supplied run showed two basket failures; a fresh run reproduced the infrastructure-rollback failure (evidence/frontend-test-baseline.txt). Clock diagnostics found MySQL-created order timestamps about 6 milliseconds ahead of the application's immediate batch cutoff (evidence/basket-clock-diagnosis.txt). Thus recently submitted orders could be excluded and the injected failure never reached. UTC timezone normalization did not eliminate this separate clock-source issue.
+
+Fix: pending-order submission now explicitly sets created_at from the injected application clock, the same clock used for cutoff validation. A regression uses a fixed clock and asserts an exact-boundary order is included. The original rejection and rollback assertions remain intact. The expanded suite passed twice: 37 specs, 0 failures (evidence/frontend-tests.txt and frontend-tests-repeat.txt).
+
+Added local browser dashboard with portfolio setup, analysis, coordinated proposals, orders, authorized two-user baskets, evaluations, and presentation guidance. Browser batch scope is authenticated for every portfolio and excludes unrelated pending orders. UI state is not treated as financial authority; the existing transaction services execute all operations. No remote publication performed.

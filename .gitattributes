@@ -1,4 +1,5 @@
+* text=auto
 *.pdf binary
 *.png binary
 *.zip binary
-* text=auto
+*.bundle binary
