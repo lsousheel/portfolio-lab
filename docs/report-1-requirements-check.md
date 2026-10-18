@@ -11,10 +11,11 @@ Submission: output/pdf/report-1-conceptual-design.pdf.
 | Buy/sell/hold and slide 17 mapping | Page 3 |
 | Relationships and cross-concept effects | Page 4 |
 | Concrete user use cases | Page 5 |
-| Analysis, integrations, scope and assumptions | Page 6 |
-| Online references and actual prompting account | Page 7 |
+| Strategy example and optimization assumptions | Page 6 |
+| Historical coverage, integrations and evaluation limits | Page 7 |
+| Online references and actual prompting account | Page 8 |
 | MySQL required | Page 1 |
-| Single conceptual PDF, 5-10 pages, no coding required | 7 pages; implementation supplement remains separate |
+| Single conceptual PDF, 5-10 pages, no coding required | 8 pages; implementation supplement remains separate |
 
 Team and member names have not been supplied and must be added before submission.
 
