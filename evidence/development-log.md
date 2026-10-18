@@ -87,3 +87,6 @@ User requested the assignment report. Updated the seven-page conceptual Report #
 
 ## Lecture screenshots supplied, 18 October 2026
 The user supplied screenshots of Lecture #1 slides 13 and 17. Report #1 now cites the reviewed slides, maps the minimal concepts to slide 13, and explicitly explains buy/sell/hold and portfolio cash as the simulated counterpart of the lecture's payment/deposit account example. Removed the now-obsolete missing-slide statement from both PDF sources. Full lecture deck was not reviewed. Report #1 remains seven pages; supplement remains six. All conceptual pages and the changed supplement page were rendered and visually checked. Screenshots preserved as lecture-1-slide-13.png and lecture-1-slide-17.png. This update changes documentation, not trading behavior.
+
+## Report #1 rubric check
+Checked the user's pasted Report #1 instructions against the PDF. Strengthened the rationale for state attributes and actions, linked it to sources and lecture slides, and emphasized conceptual scope with coding/testing reserved for later reports. Added docs/report-1-requirements-check.md with page mapping and the separate peer-evaluation dependency. Final PDF: seven pages, rendered and visually checked. Team/member names remain required. No peer reports were supplied and no peer review was invented.
