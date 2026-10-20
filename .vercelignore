@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.local
+.git
+node_modules
+dist
+tmp
+output
+evidence
+docs
+*.log

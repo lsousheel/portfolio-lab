@@ -7,3 +7,4 @@ tmp/
 
 output/*.zip
 output/*.bundle
+.vercel/
