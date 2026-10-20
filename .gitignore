@@ -8,3 +8,6 @@ tmp/
 output/*.zip
 output/*.bundle
 .vercel/
+
+.env*
+!.env.example
