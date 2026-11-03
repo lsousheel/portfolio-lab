@@ -11,3 +11,8 @@ output/*.bundle
 
 .env*
 !.env.example
+
+__pycache__/
+*.py[cod]
+output/video/
+output/presentations/
