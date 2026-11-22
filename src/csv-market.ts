@@ -1,8 +1,9 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { check } from "./domain.js";
+import { Bar, check } from "./domain.js";
 import { History, MarketProvider, normalize, Quote } from "./providers.js";
+
 export const CSV_SYMBOLS = [
   "AAPL",
   "AMZN",
@@ -25,42 +26,45 @@ export const CSV_SYMBOLS = [
   "WMT",
   "XOM",
 ];
-export const CSV_SOURCE = "nasdaq-user-csv-v1";
-export function parseNasdaq(text: string) {
+export const CSV_SOURCE = "historical-prices-csv-v1";
+export const CSV_HEADER = "symbol,date,close,open,high,low,volume";
+
+// Reads the combined historical file (one row per stock per day) and groups
+// the closing prices by symbol, sorted by date.
+export function parseHistoricalCsv(text: string) {
   const lines = text
     .replace(/^\uFEFF/, "")
     .trim()
     .split(/\r?\n/);
-  check(
-    lines.shift() === "Date,Close/Last,Volume,Open,High,Low",
-    "Unsupported Nasdaq CSV header",
-  );
-  const bars = lines
-    .filter((x) => x.trim())
-    .map((line) => {
-      const fields = line.match(/(?:"(?:[^"]|"")*"|[^,]+)(?=,|$)/g);
-      check(fields?.length === 6, "Invalid Nasdaq CSV row");
-      const values = fields.map((x) =>
-        x.replace(/^"|"$/g, "").replace(/""/g, '"'),
-      );
-      const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(values[0]);
-      check(match, "Invalid CSV date");
-      const date = `${match[3]}-${match[1]}-${match[2]}`;
-      check(z.iso.date().safeParse(date).success, "Invalid CSV date");
-      const close = Number(values[1].replace(/[$,]/g, ""));
-      check(Number.isFinite(close) && close > 0, "Invalid CSV closing price");
-      return { date, close };
-    });
-  check(bars.length > 0, "Empty CSV history");
-  return normalize(bars, "9999-12-31");
+  check(lines.shift()?.trim() === CSV_HEADER, "Unsupported historical CSV header");
+  const bySymbol = new Map<string, Bar[]>();
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const fields = line.split(",");
+    check(fields.length === 7, "Invalid historical CSV row");
+    const [symbol, date, closeText] = fields.map((x) => x.trim());
+    check(CSV_SYMBOLS.includes(symbol), "Unexpected symbol in historical CSV");
+    check(z.iso.date().safeParse(date).success, "Invalid CSV date");
+    const close = Number(closeText);
+    check(Number.isFinite(close) && close > 0, "Invalid CSV closing price");
+    if (!bySymbol.has(symbol)) bySymbol.set(symbol, []);
+    bySymbol.get(symbol)!.push({ date, close });
+  }
+  check(bySymbol.size > 0, "Empty CSV history");
+  // normalize drops nothing here (no cutoff), rejects conflicting duplicates and sorts by date
+  const result = new Map<string, Bar[]>();
+  for (const [symbol, bars] of bySymbol)
+    result.set(symbol, normalize(bars, "9999-12-31"));
+  return result;
 }
+
 export class CsvMarket implements MarketProvider {
   readonly sourceId = CSV_SOURCE;
   readonly symbols = CSV_SYMBOLS;
-  private loaded = new Map<string, Promise<ReturnType<typeof parseNasdaq>>>();
+  private loaded?: Promise<Map<string, Bar[]>>;
   constructor(
     private quoteSource?: (symbol: string) => Promise<Quote>,
-    private directory = path.resolve("data/nasdaq"),
+    private file = path.resolve("data/historical-prices.csv"),
     private now = () => new Date(),
   ) {}
   async history(symbol: string, cutoff: string): Promise<History> {
@@ -70,14 +74,9 @@ export class CsvMarket implements MarketProvider {
         cutoff <= this.now().toISOString().slice(0, 10),
       "Invalid or future cutoff",
     );
-    if (!this.loaded.has(symbol))
-      this.loaded.set(
-        symbol,
-        readFile(path.join(this.directory, symbol + ".csv"), "utf8").then(
-          parseNasdaq,
-        ),
-      );
-    const all = await this.loaded.get(symbol)!;
+    // the file is read once and kept in memory
+    this.loaded ??= readFile(this.file, "utf8").then(parseHistoricalCsv);
+    const all = (await this.loaded).get(symbol) ?? [];
     const start = new Date(cutoff + "T00:00:00Z");
     start.setUTCFullYear(start.getUTCFullYear() - 20);
     const bars = all.filter(
@@ -97,8 +96,8 @@ export class CsvMarket implements MarketProvider {
         requestedYears: 20,
       },
       warnings: [
-        "User-supplied Nasdaq Close/Last files; source not independently authenticated",
-        "Available file coverage: 2016-10-04 to 2026-10-02; not 20 years",
+        "Supplied historical closing prices; source not independently authenticated",
+        "File coverage is about 10 years (2016-10-04 to 2026-10-02), not 20",
         "Split/dividend adjustments are unverified; returns are price-series comparisons, not verified total returns",
       ],
     };

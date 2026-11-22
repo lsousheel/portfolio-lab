@@ -1,15 +1,21 @@
+import { readFile } from "node:fs/promises";
 import {
   CsvMarket,
+  CSV_HEADER,
   CSV_SYMBOLS,
   CSV_SOURCE,
-  parseNasdaq,
+  parseHistoricalCsv,
 } from "../src/csv-market.js";
-import { pool, migrate } from "../src/db.js";
-import { Trading } from "../src/trading.js";
-import { Analysis } from "../src/analysis.js";
-import { randomUUID } from "node:crypto";
-describe("Supplied Nasdaq historical files", () => {
-  it("loads exactly 20 files, orders observations and preserves hand-checked AAPL values", async () => {
+
+describe("combined historical CSV (data/historical-prices.csv)", () => {
+  it("has one header and 20 stocks x 2,513 days = 50,260 rows", async () => {
+    const lines = (await readFile("data/historical-prices.csv", "utf8"))
+      .trim()
+      .split(/\r?\n/);
+    expect(lines[0]).toBe(CSV_HEADER);
+    expect(lines.length - 1).toBe(20 * 2513);
+  });
+  it("loads all 20 stocks in date order and keeps hand-checked AAPL closes", async () => {
     const market = new CsvMarket();
     expect(CSV_SYMBOLS.length).toBe(20);
     for (const symbol of CSV_SYMBOLS) {
@@ -19,12 +25,14 @@ describe("Supplied Nasdaq historical files", () => {
       expect(h.coverage.to).toBe("2026-10-02");
       expect(h.adjustmentStatus).toBe("unverified-close");
       expect(h.provider).toBe(CSV_SOURCE);
+      expect(h.bars.every((b, i) => i === 0 || b.date > h.bars[i - 1].date)).toBeTrue();
     }
+    // first and last AAPL rows of the file
     const a = await market.history("AAPL", "2026-10-02");
     expect(a.bars[0].close).toBe(28.25);
     expect(a.bars.at(-1)!.close).toBe(333.69);
   });
-  it("enforces cutoffs, rejects unavailable symbols and never fabricates execution quotes", async () => {
+  it("cuts history at the cutoff, rejects unknown symbols and gives no fake quotes", async () => {
     const m = new CsvMarket();
     const h = await m.history("AAPL", "2025-10-16");
     expect(h.bars.every((b) => b.date <= "2025-10-16")).toBeTrue();
@@ -32,45 +40,27 @@ describe("Supplied Nasdaq historical files", () => {
     await expectAsync(m.history("AAPL", "2010-01-01")).toBeRejected();
     await expectAsync(m.quote("AAPL")).toBeRejected();
   });
-  it("rejects invalid dates, prices and conflicting duplicate days", () => {
-    const header = "Date,Close/Last,Volume,Open,High,Low\n";
-    expect(() => parseNasdaq(header + "02/30/2025,$10,1,1,1,1")).toThrow();
-    expect(() => parseNasdaq(header + "01/01/2025,$0,1,1,1,1")).toThrow();
+  it("parses a small file and sorts each stock by date", () => {
+    const parsed = parseHistoricalCsv(
+      CSV_HEADER +
+        "\nAAPL,2025-01-02,11,1,1,1,1\nMSFT,2025-01-02,50,1,1,1,1\nAAPL,2025-01-01,10,1,1,1,1",
+    );
+    expect(parsed.get("AAPL")).toEqual([
+      { date: "2025-01-01", close: 10 },
+      { date: "2025-01-02", close: 11 },
+    ]);
+    expect(parsed.get("MSFT")).toEqual([{ date: "2025-01-02", close: 50 }]);
+  });
+  it("rejects a wrong header, bad dates, bad prices, unknown symbols and conflicting duplicates", () => {
+    const row = (r: string) => CSV_HEADER + "\n" + r;
+    expect(() => parseHistoricalCsv("Date,Close\nAAPL,1")).toThrow();
+    expect(() => parseHistoricalCsv(row("AAPL,2025-02-30,10,1,1,1,1"))).toThrow();
+    expect(() => parseHistoricalCsv(row("AAPL,2025-01-01,0,1,1,1,1"))).toThrow();
+    expect(() => parseHistoricalCsv(row("AAPL,2025-01-01,abc,1,1,1,1"))).toThrow();
+    expect(() => parseHistoricalCsv(row("TSLA,2025-01-01,10,1,1,1,1"))).toThrow();
+    expect(() => parseHistoricalCsv(row("AAPL,2025-01-01,10,1,1,1"))).toThrow();
     expect(() =>
-      parseNasdaq(header + "01/01/2025,$10,1,1,1,1\n01/01/2025,$11,1,1,1,1"),
+      parseHistoricalCsv(row("AAPL,2025-01-01,10,1,1,1,1\nAAPL,2025-01-01,11,1,1,1,1")),
     ).toThrow();
   });
-  it("persists recommendations for all horizons and evaluates real-file subsequent observations", async () => {
-    const db = pool(true);
-    try {
-      await migrate(db);
-      const t = new Trading(db, new CsvMarket()),
-        a = new Analysis(t);
-      const u = await t.user("CSV audit " + randomUUID()),
-        p = await t.portfolio(u.id, 2);
-      await t.fund(u.id, p.id, "100000.00", "fund");
-      for (const h of [1, 2, 5]) {
-        const r = await a.recommend(
-          u.id,
-          p.id,
-          CSV_SYMBOLS,
-          "2025-10-16",
-          h,
-          20,
-        );
-        expect(r.details.every((d) => d.provider === CSV_SOURCE)).toBeTrue();
-        expect(
-          r.details.every(
-            (d) => !d.intervals.find((i) => i.years === 20)!.fullCoverage,
-          ),
-        ).toBeTrue();
-        expect(r.weights.reduce((x, y) => x + y, 0)).toBeCloseTo(1, 7);
-        const e = await a.evaluate(u.id, p.id, r.id, "2026-10-02");
-        expect(e.executionDate > r.cutoff).toBeTrue();
-        expect(e.end).toBe("2026-10-02");
-      }
-    } finally {
-      await db.end();
-    }
-  }, 120000);
 });

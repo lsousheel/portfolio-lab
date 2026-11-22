@@ -1,8 +1,0 @@
-[
-  {
-    observations: '50260',
-    companies: '20',
-    first_date: '2016-10-04',
-    last_date: '2026-10-02'
-  }
-]

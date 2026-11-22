@@ -60,6 +60,15 @@ export class Trading {
     );
     return { ...p[0], holdings };
   }
+  /** Every execution in a portfolio, oldest first. Used to work out what each position cost. */
+  async fills(user: string, id: string) {
+    await this.inspect(user, id);
+    return rows(
+      this.db,
+      "SELECT o.symbol, o.side, e.quantity, CAST(e.price AS CHAR) AS price FROM executions e JOIN orders o ON o.id=e.order_id WHERE o.portfolio_id=? ORDER BY e.executed_at, e.id",
+      [id],
+    ) as Promise<{ symbol: string; side: "BUY" | "SELL"; quantity: number; price: string }[]>;
+  }
   async command<T>(
     user: string,
     id: string,
@@ -216,7 +225,6 @@ export class Trading {
     p: any,
     o: any,
     q: Quote,
-    batch: string | null = null,
   ) {
     this.validateQuote(q);
     const amount = money(new Decimal(q.price).times(o.quantity)),
@@ -251,11 +259,10 @@ export class Trading {
     );
     await c.execute("UPDATE orders SET status='FILLED' WHERE id=?", [o.id]);
     await c.execute(
-      "INSERT INTO executions(id,order_id,batch_id,quantity,price,amount,observed_at,execution_mode,quote_provider) VALUES(?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO executions(id,order_id,quantity,price,amount,observed_at,execution_mode,quote_provider) VALUES(?,?,?,?,?,?,?,?)",
       [
         randomUUID(),
         o.id,
-        batch,
         o.quantity,
         q.price,
         amount.toFixed(2),
@@ -329,170 +336,6 @@ export class Trading {
         return this.fill(c, p, order, q);
       },
     );
-  }
-  async rebalance(user: string, id: string, legs: Leg[], key: string) {
-    const prior = await this.cached(user, id, key, {
-      action: "rebalance",
-      legs,
-    });
-    if (prior !== undefined) return prior;
-    check(
-      Array.isArray(legs) && legs.length > 0 && legs.length <= 40,
-      "1-40 legs required",
-    );
-    legs.forEach((l) => this.validateLeg(l));
-    check(
-      new Set(legs.map((l) => l.symbol)).size === legs.length,
-      "Duplicate symbol in rebalance",
-    );
-    await this.inspect(user, id);
-    const quotes: Record<string, Quote> = {};
-    for (const l of legs) quotes[l.symbol] = await this.quote(l.symbol);
-    return this.command(
-      user,
-      id,
-      key,
-      { action: "rebalance", legs },
-      async (c, p) => {
-        const fills = [];
-        for (const leg of [...legs].sort((a, b) =>
-          a.side === b.side ? 0 : a.side === "SELL" ? -1 : 1,
-        )) {
-          const order = { ...leg, id: randomUUID() };
-          await c.execute(
-            "INSERT INTO orders(id,portfolio_id,symbol,side,quantity,status) VALUES(?,?,?,?,?,?)",
-            [order.id, id, leg.symbol, leg.side, leg.quantity, "PENDING"],
-          );
-          fills.push(await this.fill(c, p, order, quotes[leg.symbol]));
-        }
-        return { fills, cash: p.cash };
-      },
-    );
-  }
-  async basket(key: string, cutoff: Date = this.now(), scope?: string[]) {
-    if (scope)
-      check(scope.length > 0 && scope.length <= 20, "Invalid basket scope");
-    const scoped = scope ? [...new Set(scope)].sort() : null;
-    check(
-      typeof key === "string" && key.length > 0 && key.length <= 100,
-      "Invalid batch key",
-    );
-    check(
-      Number.isFinite(cutoff.getTime()) && cutoff <= this.now(),
-      "Invalid cutoff",
-    );
-    return transaction(this.db, async (c) => {
-      await rows(c, "SELECT id FROM simulator_lock WHERE id=1 FOR UPDATE");
-      const previous = await rows(
-        c,
-        "SELECT cutoff,result FROM batches WHERE id=?",
-        [key],
-      );
-      if (previous.length) {
-        check(
-          JSON.stringify(previous[0].result.scope ?? null) ===
-            JSON.stringify(scoped),
-          "Batch scope conflict",
-          409,
-        );
-        check(
-          stamp(previous[0].cutoff + "Z") === stamp(cutoff.toISOString()),
-          "Batch key cutoff conflict",
-          409,
-        );
-        return previous[0].result;
-      }
-      const candidates = await rows(
-        c,
-        "SELECT * FROM orders WHERE status='PENDING' AND created_at<=?" +
-          (scoped
-            ? ` AND portfolio_id IN (${scoped.map(() => "?").join(",")})`
-            : "") +
-          " ORDER BY created_at,id",
-        [stamp(cutoff.toISOString()), ...(scoped || [])],
-      );
-      check(candidates.length <= 1000, "Batch exceeds 1000 orders");
-      const portfolios = new Map<string, any>();
-      for (const id of [
-        ...new Set(candidates.map((o) => o.portfolio_id)),
-      ].sort()) {
-        const [p] = await rows(
-          c,
-          "SELECT * FROM portfolios WHERE id=? FOR UPDATE",
-          [id],
-        );
-        portfolios.set(id, p);
-      }
-      const quotes = new Map<string, Quote | Error>();
-      for (const symbol of [...new Set(candidates.map((o) => o.symbol))]) {
-        try {
-          quotes.set(symbol, await this.quote(symbol));
-        } catch (e) {
-          quotes.set(symbol, e as Error);
-        }
-      }
-      await c.execute("INSERT INTO batches(id,cutoff,result) VALUES(?,?,?)", [
-        key,
-        stamp(cutoff.toISOString()),
-        "{}",
-      ]);
-      const fills: any[] = [],
-        rejected: any[] = [];
-      for (const candidate of candidates) {
-        const [o] = await rows(
-          c,
-          "SELECT * FROM orders WHERE id=? FOR UPDATE",
-          [candidate.id],
-        );
-        if (o.status !== "PENDING") continue;
-        await c.query("SAVEPOINT order_fill");
-        const p = portfolios.get(o.portfolio_id),
-          oldCash = p.cash;
-        try {
-          const q = quotes.get(o.symbol)!;
-          if (q instanceof Error) throw q;
-          const fill = await this.fill(c, p, o, q, key);
-          await c.execute(
-            "INSERT INTO basket_allocations VALUES(?,?,?,?,?,?)",
-            [key, o.id, o.symbol, o.side, o.quantity, fill.amount],
-          );
-          fills.push(fill);
-        } catch (e) {
-          await c.query("ROLLBACK TO SAVEPOINT order_fill");
-          p.cash = oldCash;
-          if (!(e instanceof DomainError)) throw e;
-          await c.execute(
-            "UPDATE orders SET status='REJECTED',reason=? WHERE id=?",
-            [e.message, o.id],
-          );
-          rejected.push({ orderId: o.id, reason: e.message });
-        }
-      }
-      const groups: Record<string, { quantity: number; amount: string }> = {};
-      for (const f of fills) {
-        const k = f.symbol + ":" + f.side;
-        const old = groups[k] || { quantity: 0, amount: "0.00" };
-        groups[k] = {
-          quantity: old.quantity + f.quantity,
-          amount: money(old.amount).plus(f.amount).toFixed(2),
-        };
-      }
-      const result = {
-        scope: scoped,
-        id: key,
-        cutoff: cutoff.toISOString(),
-        fills,
-        rejected,
-        groups,
-        policy:
-          "full fill, FIFO, separate symbol/side groups; zero fees; no netting",
-      };
-      await c.execute("UPDATE batches SET result=? WHERE id=?", [
-        JSON.stringify(result),
-        key,
-      ]);
-      return result;
-    });
   }
   async activity(user: string, id: string) {
     await this.inspect(user, id);

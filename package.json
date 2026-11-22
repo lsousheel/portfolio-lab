@@ -11,12 +11,10 @@
     "typecheck": "tsc --noEmit",
     "start": "node dist/src/server.js",
     "migrate": "node dist/src/cli.js migrate",
-    "seed": "node dist/src/cli.js seed",
-    "demo": "node dist/src/cli.js demo",
-    "evaluate": "node dist/src/cli.js evaluate",
+    "quotes": "node dist/src/cli.js quotes",
+    "watch": "node dist/src/cli.js watch",
     "test": "npm run build && jasmine --config=tests/jasmine.json",
-    "test:unit": "npm run build && jasmine dist/tests/domain.spec.js",
-    "live-smoke": "node dist/src/cli.js live"
+    "test:unit": "npm test"
   },
   "dependencies": {
     "decimal.js": "^10.6.0",

@@ -1,5 +1,0 @@
-Usability verification 2026-10-18
-node --check public/app.js: passed.
-npm test: build succeeded, 56 specs, 0 failures (usability-tests.txt).
-Browser: Overview next-step guidance; account/portfolio/cash context; company names in selectors; planning form and collapsed advanced company section; save SELL 1 AAPL => Awaiting your approval and persistent confirmation; Cancel => Cancelled and no-trade confirmation; cash unchanged at 191.65.
-Responsive CSS updated; no formal accessibility conformance or real-user usability study claimed.

@@ -1,147 +1,49 @@
 import { services } from "./config.js";
 import { migrate, rows } from "./db.js";
-import { SYMBOLS, AlphaVantage } from "./providers.js";
-const { db, trading, analysis } = services();
+import { CSV_SYMBOLS } from "./csv-market.js";
+import { logQuotes } from "./quote-log.js";
+import { monitorPortfolio } from "./monitoring.js";
+const { db, trading, finnhub } = services();
 try {
   const command = process.argv[2];
   if (command === "migrate") {
     await migrate(db);
     console.log("Migrations applied");
-  } else if (command === "seed") {
-    for (const symbol of trading.market.symbols || SYMBOLS)
-      await analysis.history(symbol, "2026-10-16");
-    console.log(
-      `Loaded 20 historical series from ${trading.market.sourceId || process.env.MARKET_PROVIDER || "offline synthetic"}; see stored provider and adjustment metadata.`,
-    );
-  } else if (command === "demo") {
-    if (trading.market.sourceId)
-      throw Error(
-        "This canned transaction demo requires MARKET_PROVIDER=offline. CSV analysis is available through the dashboard; CSV mode uses fresh Finnhub quotes for trades.",
-      );
-    console.log("SYNTHETIC OFFLINE DEMONSTRATION; simulated money only");
-    const alice = await trading.user("Demo Alice"),
-      bob = await trading.user("Demo Bob");
-    const a = await trading.portfolio(alice.id, 1),
-      b = await trading.portfolio(bob.id, 5);
-    await trading.fund(alice.id, a.id, "100000.00", "fund");
-    await trading.fund(bob.id, b.id, "100000.00", "fund");
-    console.log(
-      "Initial portfolios",
-      await trading.inspect(alice.id, a.id),
-      await trading.inspect(bob.id, b.id),
-    );
-    let recommendation: any;
-    for (const h of [1, 2, 5]) {
-      const r = await analysis.recommend(
-        alice.id,
-        a.id,
-        SYMBOLS,
-        "2025-10-16",
-        h,
-      );
-      console.log("Recommendation", {
-        id: r.id,
-        horizon: h,
-        frequency: r.frequency,
-        risk: r.risk.proposed,
-        observations: r.risk.observations,
-      });
-      recommendation = r;
-    }
-    const proposal = await analysis.propose(alice.id, a.id, recommendation.id);
-    console.log("Coordinated proposal", proposal);
-    if (proposal.legs.length)
-      console.log(
-        "Atomic rebalance",
-        await trading.rebalance(alice.id, a.id, proposal.legs, "rebalance"),
-      );
-    await trading.submit(
-      alice.id,
-      a.id,
-      { symbol: "AAPL", side: "SELL", quantity: 1 },
-      "alice-sell",
-    );
-    await trading.submit(
-      bob.id,
-      b.id,
-      { symbol: "AAPL", side: "BUY", quantity: 2 },
-      "bob-buy",
-    );
-    // A third portfolio makes the same-side multi-user aggregation explicit.
-    const a2 = await trading.portfolio(alice.id, 2);
-    await trading.fund(alice.id, a2.id, "10000.00", "fund");
-    await trading.submit(
-      alice.id,
-      a2.id,
-      { symbol: "AAPL", side: "BUY", quantity: 3 },
-      "alice-buy",
-    );
-    const cutoff = new Date();
-    console.log(
-      "Multi-user basket",
-      await trading.basket("demo-" + a.id, cutoff, [a.id, b.id, a2.id]),
-    );
-    const bad = await trading.submit(
-      bob.id,
-      b.id,
-      { symbol: "MSFT", side: "BUY", quantity: 1000000 },
-      "bad",
-    );
-    try {
-      await trading.execute(bob.id, b.id, bad.id, "bad-execute");
-      throw Error("Expected rejection");
-    } catch (e) {
-      if (!(e instanceof Error) || !e.message.includes("Insufficient funds"))
-        throw e;
-      console.log("Expected rejection:", e.message);
-    }
-    console.log(
-      "Final portfolios",
-      await trading.inspect(alice.id, a.id),
-      await trading.inspect(bob.id, b.id),
-    );
-    console.log(
-      "Historical forward-workflow evaluation",
-      await analysis.evaluate(alice.id, a.id, recommendation.id, "2026-10-16"),
-    );
-    console.log(
-      "Chronological technical replay",
-      await analysis.replay("AAPL", "2026-10-16", 1),
-    );
-    console.log("Demo completed");
-  } else if (command === "evaluate") {
-    const all = await rows(
-      db,
-      "SELECT r.id,r.portfolio_id,p.user_id FROM recommendations r JOIN portfolios p ON p.id=r.portfolio_id",
-    );
-    for (const r of all) {
-      try {
-        console.log(
-          await analysis.evaluate(
-            r.user_id,
-            r.portfolio_id,
-            r.id,
-            process.argv[3] || new Date().toISOString().slice(0, 10),
-          ),
-        );
-      } catch (e) {
-        console.log({ id: r.id, pendingOrError: (e as Error).message });
-      }
-    }
-  } else if (command === "live") {
-    const provider = new AlphaVantage(process.env.ALPHA_VANTAGE_KEY || "");
-    const s = process.argv[3] || "IBM";
-    console.log(await provider.quote(s));
-    const h = await provider.history(s, new Date().toISOString().slice(0, 10));
-    console.log({
-      symbol: s,
-      coverage: h.coverage,
-      observations: h.bars.length,
-      warnings: h.warnings,
+  } else if (command === "quotes") {
+    // npm run quotes -- [rounds] [seconds between rounds] [output file]
+    const rounds = Number(process.argv[3] || 1),
+      seconds = Number(process.argv[4] || 120),
+      file = process.argv[5] || "data/realtime/realtime-quotes.csv";
+    if (!process.env.FINNHUB_API_KEY) throw Error("Set FINNHUB_API_KEY in .env first");
+    const result = await logQuotes({
+      symbols: CSV_SYMBOLS,
+      quote: (s) => finnhub.quote(s),
+      file,
+      rounds,
+      intervalMs: seconds * 1000,
+      spacingMs: 3200,
     });
+    console.log(`Done. ${result.written} rows added to ${file}, ${result.failed} skipped.`);
+  } else if (command === "watch") {
+    // npm run watch -- <portfolio id> [seconds between checks] [checks]
+    const id = process.argv[3],
+      seconds = Number(process.argv[4] || 60),
+      checks = Number(process.argv[5] || 1000);
+    if (!id) throw Error("Usage: npm run watch -- <portfolio id> [seconds] [checks]");
+    const owner = (await rows(db, "SELECT user_id FROM portfolios WHERE id=?", [id]))[0];
+    if (!owner) throw Error("Portfolio not found");
+    for (let i = 0; i < checks; i++) {
+      const m = await monitorPortfolio(trading, owner.user_id, id);
+      console.log(`[${m.checkedAt}] ${m.summary}`);
+      for (const l of m.lines)
+        console.log(
+          `   ${l.symbol.padEnd(6)} ${String(l.quantity).padStart(4)} sh  paid ${l.avgCost}  now ${l.price ?? "n/a"}  gain ${l.gain ?? "n/a"} (${l.gainPct ?? "n/a"}%)  ${l.status}`,
+        );
+      if (i < checks - 1) await new Promise((r) => setTimeout(r, seconds * 1000));
+    }
   } else
     throw Error(
-      "Use migrate, seed, demo, evaluate [YYYY-MM-DD], or live [SYMBOL]",
+      "Use migrate, quotes [rounds] [seconds] [file], or watch <portfolio id> [seconds] [checks]",
     );
 } finally {
   await db.end();

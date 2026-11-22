@@ -1,5 +1,0 @@
-
-> programming-finance@1.0.0 seed
-> node dist/src/cli.js seed
-
-Loaded 20 historical series from nasdaq-user-csv-v1; see stored provider and adjustment metadata.

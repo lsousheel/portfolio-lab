@@ -1,5 +1,0 @@
-
-> programming-finance@1.0.0 migrate
-> node dist/src/cli.js migrate
-
-Migrations applied

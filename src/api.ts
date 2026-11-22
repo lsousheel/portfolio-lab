@@ -3,9 +3,10 @@ import { Trading } from "./trading.js";
 import { rows } from "./db.js";
 import { Analysis } from "./analysis.js";
 import { DomainError, check } from "./domain.js";
-import { SYMBOLS } from "./providers.js";
+import { CSV_SYMBOLS } from "./csv-market.js";
 import path from "node:path";
 import { Finnhub } from "./finnhub.js";
+import { monitorPortfolio } from "./monitoring.js";
 export function app(
   trading: Trading,
   analysis = new Analysis(trading),
@@ -26,7 +27,7 @@ export function app(
   app.use(express.static(path.resolve("public")));
   app.get("/app-config", (_req, res) =>
     res.json({
-      symbols: trading.market.symbols || SYMBOLS,
+      symbols: trading.market.symbols || CSV_SYMBOLS,
       sourceId: trading.market.sourceId,
       executionMode: trading.executionMode,
       executionNotice:
@@ -35,15 +36,9 @@ export function app(
           : "STRICT EXECUTION: simulated trades require a quote no more than five minutes old.",
       historicalEnd: trading.market.sourceId ? "2026-10-02" : null,
       historyNotice: trading.market.sourceId
-        ? "Supplied Nasdaq CSVs: 2016-10-04 to 2026-10-02. Adjustment method unverified; no 20-year coverage."
+        ? "Historical CSV: 2016-10-04 to 2026-10-02. Adjustment method unverified; no 20-year coverage."
         : null,
-      provider: trading.market.sourceId
-        ? "Supplied Nasdaq CSV history"
-        : process.env.MARKET_PROVIDER === "alpha"
-          ? "Alpha Vantage (may be delayed)"
-          : "Synthetic offline data",
-      synthetic:
-        !trading.market.sourceId && process.env.MARKET_PROVIDER !== "alpha",
+      provider: "Historical CSV",
     }),
   );
   app.get("/health", (_req, res) =>
@@ -51,15 +46,6 @@ export function app(
   );
   app.post("/users", async (req, res) => {
     res.status(201).json(await trading.user(req.body.name));
-  });
-  app.post("/admin/baskets", async (req, res) => {
-    check(
-      process.env.ADMIN_TOKEN &&
-        req.headers.authorization === "Bearer " + process.env.ADMIN_TOKEN,
-      "Admin token required",
-      401,
-    );
-    res.json(await trading.basket(req.body.key, new Date(req.body.cutoff)));
   });
   app.use(async (req, res, next) => {
     try {
@@ -79,29 +65,6 @@ export function app(
   app.get("/live/:symbol", async (req, res) => {
     res.json(await finnhub.snapshot(String(req.params.symbol)));
   });
-  app.post("/baskets", async (req, res) => {
-    const members = req.body.members;
-    check(
-      Array.isArray(members) && members.length >= 1 && members.length <= 20,
-      "Choose 1-20 authorized portfolios",
-    );
-    const ids: string[] = [];
-    let hasCaller = false;
-    for (const m of members) {
-      check(
-        m && typeof m.token === "string" && typeof m.portfolio === "string",
-        "Invalid participant",
-      );
-      const owner = await trading.authenticate(m.token);
-      await trading.inspect(owner.id, m.portfolio);
-      if (owner.id === uid(res)) hasCaller = true;
-      ids.push(m.portfolio);
-    }
-    check(hasCaller, "Your portfolio must participate", 403);
-    res.json(
-      await trading.basket(req.body.key, new Date(req.body.cutoff), ids),
-    );
-  });
   app.get("/portfolios/:id/recommendations", async (req, res) => {
     await trading.inspect(uid(res), pid(req));
     res.json(
@@ -111,6 +74,10 @@ export function app(
         [pid(req)],
       ),
     );
+  });
+  // Current gains and losses for the stocks in a portfolio.
+  app.get("/portfolios/:id/monitor", async (req, res) => {
+    res.json(await monitorPortfolio(trading, uid(res), pid(req)));
   });
   app.get("/me", async (req, res) => {
     res.json(
@@ -158,11 +125,6 @@ export function app(
       ),
     );
   });
-  app.post("/portfolios/:id/rebalance", async (req, res) => {
-    res.json(
-      await trading.rebalance(uid(res), pid(req), req.body.legs, key(req)),
-    );
-  });
   app.post("/portfolios/:id/recommendations", async (req, res) => {
     res
       .status(201)
@@ -173,58 +135,11 @@ export function app(
           req.body.symbols,
           req.body.cutoff,
           req.body.horizon,
-          req.body.riskYears,
         ),
       );
   });
   app.get("/portfolios/:id/recommendations/:rid", async (req, res) => {
     res.json(await analysis.get(uid(res), pid(req), String(req.params.rid)));
-  });
-  app.post(
-    "/portfolios/:id/recommendations/:rid/proposal",
-    async (req, res) => {
-      res.json(
-        await analysis.propose(uid(res), pid(req), String(req.params.rid)),
-      );
-    },
-  );
-  app.post("/portfolios/:id/recommendations/:rid/explain", async (req, res) => {
-    res.json(
-      await analysis.explain(uid(res), pid(req), String(req.params.rid)),
-    );
-  });
-  app.post(
-    "/portfolios/:id/recommendations/:rid/evaluate",
-    async (req, res) => {
-      res.json(
-        await analysis.evaluate(
-          uid(res),
-          pid(req),
-          String(req.params.rid),
-          req.body.end,
-        ),
-      );
-    },
-  );
-  app.get("/market/:symbol/history", async (req, res) => {
-    res.json(
-      await analysis.history(
-        String(req.params.symbol),
-        String(req.query.cutoff || new Date().toISOString().slice(0, 10)),
-      ),
-    );
-  });
-  app.get("/market/:symbol/quote", async (req, res) => {
-    res.json(await trading.market.quote(String(req.params.symbol)));
-  });
-  app.post("/market/:symbol/replay", async (req, res) => {
-    res.json(
-      await analysis.replay(
-        String(req.params.symbol),
-        req.body.cutoff,
-        req.body.horizon,
-      ),
-    );
   });
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     res

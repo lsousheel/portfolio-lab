@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { check, DomainError } from "./domain.js";
-import { SYMBOLS } from "./providers.js";
+import { CSV_SYMBOLS } from "./csv-market.js";
 
 // Informational live data only. Never mixed with synthetic portfolio pricing.
 export class Finnhub {
   async quote(symbol: string) {
     check(
-      [...SYMBOLS, "CSCO", "GS", "INTC"].includes(symbol),
+      CSV_SYMBOLS.includes(symbol),
       "Choose a configured US stock",
     );
     const parsed = z
@@ -89,73 +89,9 @@ export class Finnhub {
     }
   }
   async snapshot(symbol: string) {
-    check(
-      [...SYMBOLS, "CSCO", "GS", "INTC"].includes(symbol),
-      "Choose a configured US stock",
-    );
-    const to = new Date(this.now()).toISOString().slice(0, 10);
-    const from = new Date(this.now() - 7 * 86400000).toISOString().slice(0, 10);
-    const results = await Promise.allSettled([
-      this.request("quote", { symbol }, 60000),
-      this.request("company-news", { symbol, from, to }, 900000),
-    ]);
-    const warnings: string[] = [];
-    let quote: null | { price: number; observedAt: string; stale: boolean } =
-      null;
-    let news: {
-      title: string;
-      url: string;
-      published: string;
-      source: string;
-    }[] = [];
-    if (results[0].status === "fulfilled") {
-      const q = z
-        .object({ c: z.number().positive(), t: z.number().int().positive() })
-        .safeParse(results[0].value);
-      if (q.success && q.data.t * 1000 <= this.now() + 60000)
-        quote = {
-          price: q.data.c,
-          observedAt: new Date(q.data.t * 1000).toISOString(),
-          stale: this.now() - q.data.t * 1000 > 300000,
-        };
-      else warnings.push("No valid quote returned for this stock");
-    } else warnings.push(results[0].reason.message);
-    if (results[1].status === "fulfilled") {
-      const n = z
-        .array(
-          z.object({
-            headline: z.string().max(2000),
-            url: z.url(),
-            datetime: z.number().int().positive(),
-            source: z.string().max(200),
-          }),
-        )
-        .safeParse(results[1].value);
-      if (n.success)
-        news = n.data
-          .filter(
-            (x) =>
-              /^https?:\/\//.test(x.url) && x.datetime * 1000 <= this.now(),
-          )
-          .sort((a, b) => b.datetime - a.datetime)
-          .slice(0, 8)
-          .map((x) => ({
-            title: x.headline,
-            url: x.url,
-            published: new Date(x.datetime * 1000).toISOString(),
-            source: x.source,
-          }));
-      else warnings.push("Invalid news response from Finnhub");
-    } else warnings.push(results[1].reason.message);
-    return {
-      symbol,
-      provider: "Finnhub",
-      retrievedAt: new Date(this.now()).toISOString(),
-      quote,
-      news,
-      warnings,
-      purpose:
-        "Live information only; historical analysis and simulated trades use their separately labeled provider. Quotes cached up to 60 seconds; news up to 15 minutes.",
-    };
+    const quote = await this.quote(symbol);
+    return { symbol, provider: "Finnhub", retrievedAt: quote.retrievedAt,
+      quote: { price: Number(quote.price), observedAt: quote.observedAt,
+        stale: this.now() - Date.parse(quote.observedAt) > 300000 } };
   }
 }

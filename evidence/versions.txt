@@ -1,4 +1,0 @@
-19d6dde docs: preserve instructions and conceptual design baseline
-cf82639 feat: initial backend and MySQL test baseline before validation fixes
-d894c93 fix: idempotent outage retries and documented validation baseline
-131fa24 fix: enforce UTC database sessions and complete verified delivery

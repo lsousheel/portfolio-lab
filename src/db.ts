@@ -5,36 +5,17 @@ import "dotenv/config";
 export type DB = Pool | PoolConnection;
 export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export function pool(test = false) {
-  if (process.env.VERCEL) {
-    for (const key of ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"]) {
-      if (!process.env[key])
-        throw Error(`Missing hosted database setting: ${key}`);
-    }
-    if (["localhost", "127.0.0.1", "::1"].includes(process.env.DB_HOST!))
-      throw Error("Vercel requires a hosted MySQL database, not localhost");
-    if (process.env.DB_SSL !== "true")
-      throw Error("Set DB_SSL=true for the hosted database");
-  }
   const db =
     process.env[test ? "TEST_DB_NAME" : "DB_NAME"] || (test ? "pf_test" : "pf");
   if (test && !db.endsWith("_test"))
     throw Error("Test database must end in _test");
   const result = mysql.createPool({
     host: process.env.DB_HOST || "127.0.0.1",
-    port: Number(process.env.DB_PORT || 3307),
+    port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER || "pf",
     password: process.env.DB_PASSWORD || "local-demo-only",
     database: db,
-    connectionLimit: process.env.VERCEL ? 2 : 8,
-    ssl:
-      process.env.DB_SSL === "true"
-        ? {
-            rejectUnauthorized: true,
-            ...(process.env.DB_SSL_CA
-              ? { ca: process.env.DB_SSL_CA.replace(/\\n/g, "\n") }
-              : {}),
-          }
-        : undefined,
+    connectionLimit: 8,
     dateStrings: true,
     timezone: "Z",
     supportBigNumbers: true,

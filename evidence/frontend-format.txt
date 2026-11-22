@@ -1,2 +1,0 @@
-public/app.js 234ms
-docs/openapi.json 50ms
